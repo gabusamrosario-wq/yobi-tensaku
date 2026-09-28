@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>予備論文 添削ボード</title>
+<meta name="description" content="予備試験・旧司法試験の論文答案を、合格答案の基準と比べて添削するためのツール">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho+B1:wght@600;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#F2F3EF; --surface:#FFFFFF; --sunken:#F7F8F5; --ink:#1D2320; --muted:#5C6760; --line:#D8DDD6;
+  --accent:#2B5775; --accent-soft:#E2EBF1; --shu:#AE3F2B; --shu-soft:#F6E3DE; --ok:#3F7550; --ok-soft:#E2EFE5; --warn:#9A6A12; --warn-soft:#F6EDD9;
+  --sans:"Noto Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --serif:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#121614; --surface:#1A1F1C; --sunken:#151916; --ink:#E4E8E3; --muted:#98A39B; --line:#2C3430;
+    --accent:#86B5D6; --accent-soft:#1E2B34; --shu:#E4806A; --shu-soft:#3A2521; --ok:#8CBF98; --ok-soft:#1E2E23; --warn:#E0B660; --warn-soft:#352B17;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#121614; --surface:#1A1F1C; --sunken:#151916; --ink:#E4E8E3; --muted:#98A39B; --line:#2C3430;
+  --accent:#86B5D6; --accent-soft:#1E2B34; --shu:#E4806A; --shu-soft:#3A2521; --ok:#8CBF98; --ok-soft:#1E2E23; --warn:#E0B660; --warn-soft:#352B17;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;padding:0 16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 64px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+h1{font-family:var(--serif);font-weight:800;font-size:clamp(22px,4vw,30px);margin:0;line-height:1.3;letter-spacing:.02em}
+h1 small{display:block;font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.08em;color:var(--muted)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:6px 14px;border-radius:6px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+nav button:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{padding-top:20px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.col{display:grid;gap:16px;align-content:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.card h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0 0 10px;display:flex;align-items:baseline;gap:10px}
+.card h2 .step{font-family:var(--mono);font-size:12px;color:var(--shu);border:1px solid currentColor;border-radius:3px;padding:0 6px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
+textarea{resize:vertical;line-height:1.75}
+#answer{min-height:340px}
+#problem{min-height:160px}
+#skeleton{min-height:90px}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button.primary,button.ghost{font:inherit;font-size:14px;padding:8px 16px;border-radius:6px;cursor:pointer}
+button.primary{background:var(--shu);color:#fff;border:1px solid var(--shu)}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--sunken)}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:12px;color:var(--muted);margin-left:4px}
+.meter{position:relative;height:10px;background:var(--line);border-radius:5px;margin:22px 0 26px}
+.meter .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:5px}
+.meter .mark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
+.meter .mark span{position:absolute;top:18px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;color:var(--muted)}
+.meter .mark.up span{top:-20px}
+.meter .mark.end span{left:auto;right:0;transform:none}
+.flags{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.flags li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:8px 10px;border-radius:6px;font-size:14px}
+.flags li .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:3px;white-space:nowrap;margin-top:2px}
+.flags li.ok{background:var(--ok-soft)} .flags li.ok .tag{background:var(--ok);color:var(--surface)}
+.flags li.warn{background:var(--warn-soft)} .flags li.warn .tag{background:var(--warn);color:var(--surface)}
+.flags li.bad{background:var(--shu-soft)} .flags li.bad .tag{background:var(--shu);color:var(--surface)}
+.flags li.info{background:var(--accent-soft)} .flags li.info .tag{background:var(--accent);color:var(--surface)}
+table.blocks{width:100%;border-collapse:collapse;font-size:13px}
+.tablewrap{overflow-x:auto}
+table.blocks th,table.blocks td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table.blocks th{font-weight:500;color:var(--muted);white-space:nowrap}
+table.blocks td.c{text-align:center;font-family:var(--mono)}
+.sc{display:grid;gap:10px}
+.sc .item{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px}
+.sc .item b{font-weight:700}
+.sc .item p{grid-column:1/3;margin:0;font-size:12px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none;width:1px}
+.seg label{display:block;padding:4px 12px;cursor:pointer;color:var(--ink);font-size:14px;border-right:1px solid var(--line)}
+.seg label:last-child{border-right:0}
+.seg input:checked+label{background:var(--ink);color:var(--bg)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-2px}
+.verdict{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-top:12px;padding:12px;border-radius:6px;background:var(--sunken);border:1px solid var(--line)}
+.verdict .band{font-family:var(--serif);font-weight:800;font-size:22px}
+.result{font-size:14.5px}
+.result h1,.result h2,.result h3{font-family:var(--serif);font-weight:600;line-height:1.4;margin:1.2em 0 .4em}
+.result h1{font-size:20px}.result h2{font-size:18px}.result h3{font-size:16px}
+.result ul,.result ol{padding-left:1.4em}
+.result pre{background:var(--sunken);border:1px solid var(--line);padding:10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap}
+.result code{font-family:var(--mono);font-size:13px}
+.result blockquote{margin:0;padding:4px 12px;border-left:3px solid var(--line);color:var(--muted)}
+.result table{border-collapse:collapse;display:block;overflow-x:auto}
+.result td,.result th{border:1px solid var(--line);padding:4px 8px}
+.status{font-size:13px;color:var(--muted)}
+.status.err{color:var(--shu)}
+.rubric{max-width:820px}
+.rubric .result h2{border-top:2px solid var(--ink);padding-top:10px}
+.hist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.hist li{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.hist li .meta{font-size:12px;color:var(--muted)}
+.empty{color:var(--muted);font-size:14px}
+footer{margin-top:40px;font-size:12px;color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><small>予備試験・旧司 論文</small>予備論文 添削ボード</h1>
+    <nav role="tablist" aria-label="画面の切り替え">
+      <button role="tab" id="tab-grade" aria-selected="true" aria-controls="p-grade">添削</button>
+      <button role="tab" id="tab-rubric" aria-selected="false" aria-controls="p-rubric">合格答案の基準</button>
+      <button role="tab" id="tab-hist" aria-selected="false" aria-controls="p-hist">履歴</button>
+      <button role="tab" id="tab-set" aria-selected="false" aria-controls="p-set">設定</button>
+    </nav>
+  </header>
+
+  <!-- 添削 -->
+  <section class="panel" id="p-grade" role="tabpanel" aria-labelledby="tab-grade">
+    <div class="grid">
+      <div class="col">
+        <div class="card">
+          <h2><span class="step">1</span>問題</h2>
+          <div class="row">
+            <label for="exam">試験<select id="exam"><option>予備</option><option>旧司</option><option>その他</option></select></label>
+            <label for="year">年度<input id="year" placeholder="令和6年"></label>
+            <label for="subject">科目<select id="subject"></select></label>
+            <label for="minutes">制限時間（分）<input id="minutes" type="number" min="0" placeholder="70"></label>
+          </div>
+          <label for="problem" style="margin-top:10px">問題文（任意。貼ると事実の拾い率と書き写しを調べる）<textarea id="problem" placeholder="問題文を貼る"></textarea></label>
+          <label for="skeleton" style="margin-top:10px">出題趣旨・模範答案の骨格（任意。主要な条文・論点・検討順序をメモ）<textarea id="skeleton" placeholder="例：①206条の2の手続 ②その瑕疵が無効事由になるか ③…"></textarea></label>
+        </div>
+        <div class="card">
+          <h2><span class="step">2</span>答案</h2>
+          <label for="answer" class="sr">答案</label>
+          <textarea id="answer" placeholder="CBTで打った答案をそのまま貼る"></textarea>
+          <div class="row" style="margin-top:10px">
+            <label for="finished">完走<select id="finished"><option value="完走">完走</option><option value="途中">途中</option></select></label>
+            <label for="selfnote" style="grid-column:span 3">起案直後の自己評価<input id="selfnote" placeholder="例：設問2が薄い。157条の要件を分け忘れた"></label>
+          </div>
+          <div class="btns" style="margin-top:12px">
+            <button class="primary" id="run">自動チェック</button>
+            <button class="ghost" id="clear">入力を消す</button>
+          </div>
+          <p class="hint">入力内容はこのブラウザの中だけに保存される。GitHubにもどこにも送られない（AI添削を使ったときだけ、Anthropicに送られる）。</p>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card" id="autoCard">
+          <h2><span class="step">3</span>自動チェック</h2>
+          <div id="auto"><p class="empty">答案を貼って「自動チェック」を押すと、ここに結果が出る。</p></div>
+        </div>
+        <div class="card">
+          <h2><span class="step">4</span>自己チェック（合格答案と比べる8項目）</h2>
+          <div class="sc" id="sc"></div>
+          <div class="verdict" id="verdict"><span class="band">—</span><span class="status">8項目を選ぶと目安が出る</span></div>
+        </div>
+        <div class="card">
+          <h2><span class="step">5</span>AI添削</h2>
+          <p class="hint" style="margin-top:0">APIキーがなくても、「プロンプトをコピー」してClaudeに貼れば同じ形式で添削される。</p>
+          <div class="btns" style="margin-top:8px">
+            <button class="ghost" id="copyPrompt">プロンプトをコピー</button>
+            <button class="primary" id="callApi">APIで添削する</button>
+            <button class="ghost" id="saveHist">履歴に保存</button>
+          </div>
+          <p class="status" id="aiStatus" role="status" aria-live="polite"></p>
+          <div class="result" id="aiResult"></div>
+          <label for="aiPaste" style="margin-top:10px">Claudeで添削した結果を貼って保存する場合<textarea id="aiPaste" style="min-height:90px" placeholder="Claudeの返答を貼る（任意）"></textarea></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 基準 -->
+  <section class="panel" id="p-rubric" role="tabpanel" aria-labelledby="tab-rubric" hidden>
+    <div class="card rubric"><div class="result" id="rubricView"></div></div>
+  </section>
+
+  <!-- 履歴 -->
+  <section class="panel" id="p-hist" role="tabpanel" aria-labelledby="tab-hist" hidden>
+    <div class="card">
+      <h2>履歴</h2>
+      <p class="hint" style="margin-top:0">このブラウザにだけ保存されている。別の端末に移すときは書き出して読み込む。</p>
+      <div class="btns" style="margin:10px 0 14px">
+        <button class="ghost" id="exportHist">書き出す（JSON）</button>
+        <label class="ghost" for="importHist" style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 16px;cursor:pointer;color:var(--ink);font-size:14px">読み込む<input type="file" id="importHist" accept="application/json" class="sr"></label>
+      </div>
+      <ul class="hist" id="histList"></ul>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="panel" id="p-set" role="tabpanel" aria-labelledby="tab-set" hidden>
+    <div class="card" style="max-width:720px">
+      <h2>AI添削の設定（任意）</h2>
+      <p class="hint" style="margin-top:0">Anthropic のAPIキー（console.anthropic.com で発行。使った分だけ料金がかかる）。キーはこのブラウザにだけ保存され、ページのコードやGitHubには入らない。共用PCでは保存しないこと。</p>
+      <div class="row" style="margin-top:10px">
+        <label for="apiKey" style="grid-column:span 2">APIキー<input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+        <label for="model">モデル<select id="model">
+          <option value="claude-sonnet-5">claude-sonnet-5（標準）</option>
+          <option value="claude-opus-5">claude-opus-5（高精度・高め）</option>
+          <option value="custom">その他（下に入力）</option>
+        </select></label>
+      </div>
+      <label for="modelCustom" style="margin-top:10px">その他のモデル名<input id="modelCustom" placeholder="例：claude-haiku-4-5-20251001"></label>
+      <div class="btns" style="margin-top:12px">
+        <button class="primary" id="saveKey">保存</button>
+        <button class="ghost" id="delKey">キーを削除</button>
+      </div>
+      <p class="status" id="setStatus" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <footer>基準は、法務省の公式資料（予備試験の出題趣旨・方式等の申合せ・合格点、司法試験の採点実感）と、無料公開されている評価つき再現答案（R3〜R7）の分析をもとにまとめたもの。評価の推定は目安で、実際の採点とは異なりうる。</footer>
+</div>
+
+<script>
+"use strict";
+/* ====== 合格答案の基準（公開用：個人名・アカウントは含めない） ====== */
+const RUBRIC = [
+"# 予備論文 合格答案の基準",
+"",
+"法務省の公式資料と、無料公開されている評価つき再現答案（R3〜R7、計117通）を分析してまとめたもの。答案の本文は載せていない。",
+"",
+"## 0. 資料の性質",
+"- **予備試験の「採点実感」は法務省から出ていない。** 論文式で公表されているのは「出題の趣旨」だけ。水準の描写や減点パターンは、司法試験（本試験）の同じ科目の採点実感を補助として使っている。実務基礎は予備の出題趣旨のみ。",
+"- 評価A〜Fは科目ごとの順位。Aは上位約300位（非公式情報）。**Aは完璧な答案ではなく「上位約300人」の答案**。",
+"- 再現答案は本人の記憶による再現で、公開者は上位合格者に偏っている。",
+"",
+"## 1. 点数の仕組み（公式）",
+"| 区分 | 点数（50点満点） | 分布の目安 |",
+"|---|---|---|",
+"| 優秀 | 50〜38（抜群は48以上） | 5%程度 |",
+"| 良好 | 37〜29 | 25%程度 |",
+"| 一応の水準 | 28〜21 | 40%程度 |",
+"| 不良 | 20〜0（特に不良は3以下） | 30%程度 |",
+"",
+"- 素点は考査委員ごとの平均点と標準偏差で調整される（偏差値方式）。",
+"- 合格点（500点満点）：R1 230／R2 230／R3 240／R4 255／R5 245／R6 245／R7 240。1科目あたり約23〜25.5点で、「一応の水準」の上のほう。",
+"- **全科目で大崩れせず「一応の水準の上」をそろえ、何科目かで「良好」を取れば合格圏**。",
+"",
+"## 2. CBTと分量",
+"- CBT（2026年から）：1問4ページ×23行×30字＝**上限2,760字**。",
+"- A答案の再現文字数は約1,350〜3,700字、**中央値は約2,200字**（CBTで約3.2ページ）。1,356字のAもあれば、同じ年に一番長い2,959字の答案がEだった例もある。**分量はAの条件ではない**。",
+"- 科目や設問が丸ごと空ならF。小問1つの空白や最後の時間切れなら、AやBで残った例がある。",
+"",
+"## 3. A答案の条件（重要な順）",
+"1. **中心の条文・判例の枠組みを選べている（出題趣旨の骨格に乗っている）**：A答案と低評価答案の差が一番はっきり出るのはここ。同じ年・同じ科目を比べると、ほぼすべて枠組みの選択で差がついた。",
+"   - 例：「遅すぎた構成要件の実現」の枠組みで因果関係を論じたA／「実行の着手」の枠組みで書いたF（R5刑法）",
+"   - 例：536条2項と112条類推を取り上げたA／94条2項類推で書いたE（R5民法）",
+"   - 例：206条の2を挙げて無効事由まで説明したA／1行だけのB／挙げなかったF（R7商法）",
+"2. **要件を分解し、要件ごとに当てはめている**：A答案は例外なくしている。ただし低評価答案もしていることが多く、「Aの前提」。分解の差が効いた例：157条1項の3要件を分けたA／一般論で済ませたD・F（R6民訴）。",
+"3. **事実を数字ごと引いて、論点の要件とかみ合った評価を1文つける**：「たしかに〜しかし〜」で不利な事実を挙げてから覆す型が多い。数字を引くだけでは差にならず、評価が要件とずれると低評価（「300万円は大金」だけで終わったE）。",
+"4. **規範は短い（1〜2文）。基本論点は判例に近い形**：判例準則から離れた独自の基準は低評価。設問の中心論点では理由つきで5文ほど書いたAもある。",
+"5. **配点の大きい限界事例に厚く、争いのない点は一言**：論点の数は多くない。",
+"6. **条文を番号と文言（「」）で示す**：行政法は個別法の条文引用の多さが評価に効く。",
+"7. **冒頭で問題提起し、末尾で問いの文言に対応する結論**：前置きや一般論は置かない。",
+"",
+"## 4. Aでも許される失点／D〜Fになる典型",
+"**Aでも許される**（骨格に乗っていれば）",
+"- 細部の誤り、結論の違い、小論点の落とし、出題趣旨が挙げた判例の一部を落とす",
+"- 難問の設問を守りの答案で薄くする、条文番号の誤記、最後の小問の時間切れ",
+"- 他の受験生もできていないところは相対評価で差がつかない",
+"",
+"**D〜Fになる典型**",
+"- 別の枠組みで書く・筋外し・問題文の読み違い（事実をいくら拾っても点が上がらない）",
+"- **論理矛盾**（人物ごとに故意の扱いが食い違う等）。論証の不正確さより重く減点される",
+"- 要件を分けずに一般論で結論、結論だけで理由がない",
+"- 科目・設問が丸ごと空、基本判例を知らない",
+"",
+"## 5. 科目別チェックポイント",
+"（【予】予備の出題趣旨、【本】司法試験の採点実感・補助）",
+"",
+"### 憲法",
+"- 審査の枠組みを**規制の性質から理由づけて**設定する【予】。判例との違いを意識する【予】。事案の類型ごとに分けて検討する【予】。",
+"- 減点【本】：理由のない「重要な権利だから厳格審査」、基準と当てはめの不一致、事実を写して「重要」「合理的」とだけ言う、判例に触れない。",
+"",
+"### 行政法",
+"- 水準【本】：一応＝判例の定式＋根拠法令に即して結論。良好＝判例の内容・規定を具体的に指摘し事実に触れる。優秀＝条文構造の細部、反論・反対説まで。",
+"- 原告適格は9条1項の判例基準を第三者に即して、根拠法令の要件・目的から個別的利益を具体的に【予】。本案の主張を組み立てる力【予】。",
+"- 減点【本】：三段論法になっていない、会話文の書き写し、条文を引かない、**会議録の指示に従わない**。",
+"",
+"### 民法",
+"- 型：生の請求 → 法的根拠 → 要件 → 論点 → 効果 → 反論の根拠。",
+"- 請求権の要件を一つずつ、条文に即して【予】。減点【本】：要件の一部だけで効果を認める、結論の妥当性を気にしない、法律構成を固めないまま論点に入る。",
+"",
+"### 商法",
+"- 根拠条文を正確に特定、手続を順に説明、事実に即して実質的に【予】。責任主体ごとに要件を分ける。",
+"- 減点【本】：論証パターンに事案を引き寄せる、「お手盛り防止」等のマジックワード、会社法の責任を問われて民法で書く。ポイントを押さえれば分量が少なくても高得点。",
+"",
+"### 民事訴訟法",
+"- 条文上の根拠と、どの要件との関係の問題かを明示、条文の要件ごとに検討、指定された立場から反論を想定【予】。",
+"- 減点【本】：論証の書き出し、「紛争の一回的解決」の羅列、抽象論で終わる。",
+"",
+"### 刑法",
+"- 構成要件要素ごとに事実で認定、限界事例を丁寧に、論理の一貫性、罪数まで【予】【本】。",
+"- 減点【本】：論証の書き写し、規範と当てはめの区別がない、立場を指定されたのに両説を並べるだけ、検討対象外の罪を論じる。",
+"",
+"### 刑事訴訟法",
+"- 根拠を示して判断基準を明らかに、制度趣旨・条文構造から【予】。",
+"- 良好止まりの理由【本】：当てはめが事実の羅列で、基準に照らした意味づけが足りない。",
+"",
+"### 実務基礎",
+"- 民事：訴訟物・請求の趣旨・請求原因、抗弁・再抗弁の要件事実とその理由、否認と抗弁の区別、二段の推定、保全・執行【予】。",
+"- 刑事：証拠構造、間接事実の推認力、犯人識別供述・共犯者供述の信用性、条文の要件、弁護士倫理、刑事実体法【予】。",
+"",
+"## 6. 最近の傾向（R5〜R7）",
+"1. 判例を「使える形で」正確に：前提事実・理由・射程",
+"2. 条文の文言の解釈と、個別法の仕組み",
+"3. 暗記・論証パターンへの批判がはっきりした",
+"4. 対立する立場の立論・反論",
+"5. 事実の評価の過程を文章にする",
+"",
+"## 7. 添削で比べる8項目",
+"1. **骨格（最重要）**：中心の条文・判例の枠組みを選べているか。別の枠組みで書いていないか。外れていればD〜F圏。",
+"2. **要件の分解**：要件ごとに規範と当てはめが対応しているか。",
+"3. **事実の評価**：数字ごと引き、評価が論点の要件とかみ合っているか。事実の7割以上を拾えているか。書き写しで終わっていないか。",
+"4. **規範**：基本論点で判例に近いか。長すぎないか（中心論点は長くてよい）。",
+"5. **論理の一貫性**：人物ごと・設問ごとに判断が食い違っていないか。",
+"6. **配分・完走**：限界事例に厚いか。全設問に最後まで触れているか。",
+"7. **条文**：番号と文言で示しているか。",
+"8. **問いへの対応**：指示（立場・会議録・検討対象外）に従い、結論が問いの文言に対応しているか。",
+"",
+"推定評価は「骨格 → 要件分解 → 事実評価のかみ合い → 論理の一貫性」の順で決める。細部の誤りや小論点の落としだけで大きく下げない。",
+"",
+"## 出典（法務省）",
+"- 予備試験 論文式 出題の趣旨：https://www.moj.go.jp/jinji/shihoushiken/jinji07_00027.html（各年度の結果ページから）",
+"- 予備試験の方式・内容等（採点区分・分布・調整）：https://www.moj.go.jp/content/001428451.pdf",
+"- 司法試験 採点実感（R7）：公法系 https://www.moj.go.jp/content/001453798.pdf ／民事系 https://www.moj.go.jp/content/001453799.pdf ／刑事系 https://www.moj.go.jp/content/001453800.pdf",
+"- CBT（23行×30字、1問4ページ）：各予備校の解説による"
+].join("\n");
+
+/* ====== 添削プロンプト ====== */
+const SYSTEM_PROMPT = [
+"あなたは司法試験予備試験・旧司法試験の論文答案を添削する指導者です。",
+"方針：甘く採点しない。間違いは遠慮なく指摘する。受験生に同調しない。ただし、下の「合格答案の基準」にあるとおり、細部の誤りや小論点の落としだけで評価を大きく下げない。",
+"条文番号・判例は確実なものだけを挙げる。自信がないものは「要確認」と書く。出題趣旨・骨格が入力されていない場合は、骨格を自分で推定したことを明記する。",
+"答案の引用は短く（1か所40字以内）。答案全体を再掲しない。",
+"",
+"必ず次の形式（Markdown）で出力する：",
+"## 推定評価",
+"A〜Fのどの圏か、50点満点で何点前後か（推定）。根拠を2〜3行。",
+"## Ⅰ　答案への指摘",
+"答案の該当箇所を短く引用し、【指摘N｜分類】で具体的に指摘する（分類：構成・論点抽出・規範・当てはめ・論理・根拠の欠落・条文・表現）。どの事実がどの要件にどう効くかまで一文で示す。良い箇所も指摘する。",
+"## Ⅱ　この問題の骨格（N本の柱）",
+"柱ごとに「→ 本答案は〜」で到達度。最後に「実質◯本押さえている」。",
+"## Ⅲ　総評：合格答案との差",
+"8項目（骨格・要件の分解・事実の評価・規範・論理の一貫性・配分と完走・条文・問いへの対応）のうち、合格答案と差がある項目を、差が大きい順に。分量（CBT換算ページ数）にも触れる。良かった点も書く。",
+"## Ⅳ　次への課題（1つに絞る）",
+"明日から機械的にできる形（型・一文・手順）で1つだけ。",
+"## 落とした論点ノート",
+"次のテンプレートを埋める（×＝論点に気づかなかった、△＝規範があいまい、▲＝当てはめがあいまい。迷ったら重いほう）：",
+"```",
+"【教材】",
+"【×論点を落とした】",
+"【△規範があいまい】",
+"【▲当てはめがあいまい】",
+"【気づき】",
+"```",
+"",
+"===== 合格答案の基準 =====",
+RUBRIC
+].join("\n");
+
+/* ====== 小道具 ====== */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nfkc = s => (s || "").normalize("NFKC");
+
+/* 小さなMarkdown表示（HTMLはすべてエスケープしてから整形） */
+function md(src){
+  const lines = esc(src || "").split("\n");
+  let out = [], i = 0;
+  const inline = t => t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/(https?:\/\/[^\s<）)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  while(i < lines.length){
+    let l = lines[i];
+    if(/^```/.test(l)){ let buf = []; i++; while(i < lines.length && !/^```/.test(lines[i])){ buf.push(lines[i]); i++; } i++; out.push("<pre><code>" + buf.join("\n") + "</code></pre>"); continue; }
+    let h = l.match(/^(#{1,4})\s+(.*)$/); if(h){ const n = Math.min(h[1].length + 0, 4); out.push(`<h${n}>${inline(h[2])}</h${n}>`); i++; continue; }
+    if(/^\|/.test(l)){ let rows = []; while(i < lines.length && /^\|/.test(lines[i])){ rows.push(lines[i]); i++; }
+      rows = rows.filter(r => !/^\|\s*-/.test(r));
+      out.push("<table>" + rows.map((r, ri) => "<tr>" + r.replace(/^\||\|$/g, "").split("|").map(c => ri === 0 ? `<th>${inline(c.trim())}</th>` : `<td>${inline(c.trim())}</td>`).join("") + "</tr>").join("") + "</table>"); continue; }
+    if(/^\s*[-*]\s+/.test(l)){ let buf = []; while(i < lines.length && /^\s*[-*]\s+/.test(lines[i])){ buf.push("<li>" + inline(lines[i].replace(/^\s*[-*]\s+/, "")) + "</li>"); i++; } out.push("<ul>" + buf.join("") + "</ul>"); continue; }
+    if(/^\s*\d+[.．]\s+/.test(l)){ let buf = []; while(i < lines.length && (/^\s*\d+[.．]\s+/.test(lines[i]) || /^\s{2,}[-*]\s+/.test(lines[i]))){
+        const it = lines[i]; buf.push(/^\s{2,}[-*]\s+/.test(it) ? "<li style=\"list-style:none\">・" + inline(it.replace(/^\s*[-*]\s+/, "")) + "</li>" : "<li>" + inline(it.replace(/^\s*\d+[.．]\s+/, "")) + "</li>"); i++; }
+      out.push("<ol>" + buf.join("") + "</ol>"); continue; }
+    if(/^&gt;\s?/.test(l)){ out.push("<blockquote>" + inline(l.replace(/^&gt;\s?/, "")) + "</blockquote>"); i++; continue; }
+    if(l.trim() === ""){ i++; continue; }
+    let buf = [l]; i++;
+    while(i < lines.length && lines[i].trim() !== "" && !/^(#{1,4}\s|```|\||\s*[-*]\s+|\s*\d+[.．]\s+|&gt;)/.test(lines[i])){ buf.push(lines[i]); i++; }
+    out.push("<p>" + inline(buf.join("<br>")) + "</p>");
+  }
+  return out.join("\n");
+}
+
+/* ====== タブ ====== */
+const tabs = ["grade", "rubric", "hist", "set"];
+function showTab(name){
+  tabs.forEach(t => {
+    $("tab-" + t).setAttribute("aria-selected", t === name ? "true" : "false");
+    $("p-" + t).hidden = t !== name;
+  });
+  store.set("ytb-tab", name);
+  if(name === "hist") renderHist();
+}
+tabs.forEach(t => $("tab-" + t).addEventListener("click", () => showTab(t)));
+
+/* ====== 科目 ====== */
+const SUBJECTS = ["憲法","行政法","民法","商法","民事訴訟法","刑法","刑事訴訟法","法律実務基礎（民事）","法律実務基礎（刑事）","選択科目","一般教養"];
+$("subject").innerHTML = SUBJECTS.map(s => `<option>${s}</option>`).join("");
+
+/* ====== 自己チェック8項目 ====== */
+const ITEMS = [
+  ["骨格（最重要）", "中心の条文・判例の枠組みを選べたか。出題趣旨の検討順序に乗っているか。別の枠組みで書いていないか。", 4],
+  ["要件の分解", "要件ごとに規範と当てはめが対応しているか。", 2],
+  ["事実の評価", "数字ごと引き、評価が論点の要件とかみ合っているか。事実の7割以上を拾えたか。", 2],
+  ["規範", "基本論点で判例に近いか。長すぎないか（中心論点は長くてよい）。", 1],
+  ["論理の一貫性", "人物ごと・設問ごとに判断が食い違っていないか。", 2],
+  ["配分・完走", "限界事例に厚いか。全設問に最後まで触れたか。", 2],
+  ["条文", "番号と文言（「」）で示したか。", 1],
+  ["問いへの対応", "指示（立場・会議録・検討対象外）に従い、結論が問いの文言に対応しているか。", 2]
+];
+$("sc").innerHTML = ITEMS.map((it, i) => `
+  <div class="item">
+    <b>${i + 1}. ${it[0]}</b>
+    <span class="seg" role="radiogroup" aria-label="${it[0]}">
+      ${["◯","△","×"].map((m, j) => `<input type="radio" name="sc${i}" id="sc${i}_${j}" value="${2 - j}"><label for="sc${i}_${j}">${m}</label>`).join("")}
+    </span>
+    <p>${it[1]}</p>
+  </div>`).join("");
+function readSelf(){
+  return ITEMS.map((_, i) => { const c = document.querySelector(`input[name="sc${i}"]:checked`); return c ? Number(c.value) : null; });
+}
+function verdict(){
+  const v = readSelf();
+  const filled = v.filter(x => x !== null).length;
+  const box = $("verdict");
+  if(filled < ITEMS.length){ box.innerHTML = `<span class="band">—</span><span class="status">あと${ITEMS.length - filled}項目選ぶと目安が出る</span>`; return null; }
+  const max = ITEMS.reduce((a, it) => a + it[2] * 2, 0);
+  const sc = ITEMS.reduce((a, it, i) => a + it[2] * v[i], 0);
+  let band, note;
+  const r = sc / max;
+  if(r >= .85){ band = "A圏"; } else if(r >= .68){ band = "B圏"; } else if(r >= .5){ band = "C圏"; } else { band = "D〜F圏"; }
+  if(v[0] === 0){ band = "D〜F圏"; note = "骨格が外れていると、ほかがよくても低評価になりやすい"; }
+  else if(v[0] === 1 && (band === "A圏")){ band = "B圏"; note = "骨格が△だとAは難しい"; }
+  if(v[4] === 0 && (band === "A圏" || band === "B圏")){ band = "C圏"; note = "論理の矛盾は重い減点"; }
+  if(v[5] === 0 && (band === "A圏")){ band = "B圏"; note = "設問が丸ごと空ならFもありうる"; }
+  box.innerHTML = `<span class="band">${band}</span><span class="status">自己チェックによる目安（${sc}/${max}）${note ? "。" + note : ""}</span>`;
+  return {band, score: sc, max, v};
+}
+$("sc").addEventListener("change", () => { verdict(); saveDraft(); });
+
+/* ====== 自動チェック ====== */
+const CBT_COLS = 30, CBT_ROWS = 23, CBT_PAGES = 4, A_MEDIAN = 2200, CBT_MAX = CBT_COLS * CBT_ROWS * CBT_PAGES;
+const RE_HEAD = /^\s*(第\s*[0-9一二三四五六七八九十]+|[0-9]+\s*[.．、\s]|[(（][0-9]+[)）]|[アイウエオカキクケコサシスセソタチツテト]\s*[.．、\s]|[(（][アイウエオカキクケコ][)）]|設問\s*[0-9]+|小問\s*[0-9]+)/;
+const RE_NORM = /(と解する|と解すべき|をいう|と考える|べきである|基準|判断する|要件|趣旨|すなわち)/;
+const RE_APPLY = /(本件では|本件において|本件で|本問では|本問において|たしかに|確かに|これを本件|本件の|本件[^\s、。]{0,8}は)/;
+const RE_CONC = /(よって|したがって|以上より|ゆえに|従って|以上から|以上の)/;
+const RE_UNIT = /[0-9]+(?:[.,][0-9]+)?\s*(?:万|千|億)?\s*(?:円|m|メートル|km|キロ|cm|センチ|分|時間|日間|日|か月|ヶ月|カ月|月|年間|年|歳|株|%|パーセント|回|人|名|件|枚|室|平方メートル|㎡|秒|台|本|個|倍|割)/g;
+
+function cbtLines(text){
+  return nfkc(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil([...l.replace(/\s+$/,"")].length / CBT_COLS)), 0);
+}
+function charCount(text){ return [...(text || "").replace(/\s/g, "")].length; }
+
+/* 一番上の階層の見出し（第1／設問1／1.）だけで段落を区切る */
+const RE_TOP = [
+  /^\s*(第\s*[0-9一二三四五六七八九十]+|設問\s*[0-9]+|小問\s*[0-9]+)/,
+  /^\s*[0-9]+\s*[.．、\s]/,
+  /^\s*[(（][0-9]+[)）]/
+];
+function splitBlocks(ans){
+  const lines = ans.split("\n");
+  const re = RE_TOP.find(r => lines.some(l => r.test(nfkc(l)))) || null;
+  if(!re) return [{head:"（全体）", text:ans}];
+  const blocks = []; let cur = {head:"（冒頭）", body:[]};
+  lines.forEach(l => {
+    if(re.test(nfkc(l))){
+      if(cur.body.join("").trim()) blocks.push(cur);
+      const t = l.trim();
+      cur = t.length <= 30 ? {head:t, body:[]} : {head:t.slice(0, 24) + "…", body:[l]};
+    } else cur.body.push(l);
+  });
+  if(cur.body.join("").trim()) blocks.push(cur);
+  return blocks.map(b => ({head:b.head, text:b.body.join("\n")})).filter(b => charCount(b.text) > 0);
+}
+
+function copyRatio(ans, prob){
+  const a = nfkc(ans).replace(/\s/g, ""), p = nfkc(prob).replace(/\s/g, "");
+  if(a.length < 30 || p.length < 30) return null;
+  const W = 20; const cov = new Uint8Array(a.length);
+  for(let i = 0; i + W <= a.length; i += 2){ const w = a.slice(i, i + W); if(p.indexOf(w) >= 0){ for(let k = i; k < i + W; k++) cov[k] = 1; } }
+  let c = 0; cov.forEach(x => c += x);
+  return c / a.length;
+}
+
+function factCoverage(ans, prob){
+  const p = nfkc(prob), a = nfkc(ans).replace(/[\s,]/g, "");
+  const facts = [...new Set((p.match(RE_UNIT) || []).map(s => s.replace(/[\s,]/g, "")))];
+  if(!facts.length) return null;
+  const used = facts.filter(f => a.indexOf(f) >= 0);
+  return {facts, used};
+}
+
+function runChecks(){
+  const ans = $("answer").value, prob = $("problem").value;
+  if(!ans.trim()){ $("auto").innerHTML = '<p class="empty">答案が空です。答案を貼ってから押してください。</p>'; return null; }
+  const chars = charCount(ans), lines = cbtLines(ans), pages = lines / CBT_ROWS;
+  const n = nfkc(ans);
+  const arts = [...new Set((n.match(/[0-9]+条(?:の[0-9]+)?(?:[0-9]+項)?(?:[0-9]+号)?/g) || []))];
+  const quotes = (n.match(/「[^」]{1,40}」/g) || []).length;
+  const nums = (n.match(RE_UNIT) || []).length;
+  const issues = (n.match(/か[。？?]/g) || []).length + (n.match(/問題となる/g) || []).length;
+  const blocks = splitBlocks(ans).map(b => {
+    const t = nfkc(b.text);
+    return {head:b.head, chars:charCount(b.text), norm:RE_NORM.test(t), apply:RE_APPLY.test(t), conc:RE_CONC.test(t)};
+  });
+  const cr = prob.trim() ? copyRatio(ans, prob) : null;
+  const fc = prob.trim() ? factCoverage(ans, prob) : null;
+
+  const flags = [];
+  // 分量
+  if(chars > CBT_MAX || lines > CBT_ROWS * CBT_PAGES) flags.push(["bad","分量",`CBTの上限（4ページ・約${CBT_MAX.toLocaleString()}字）を超えている（推定${pages.toFixed(1)}ページ）。本番では入りきらない。`]);
+  else if(chars < 1200) flags.push(["warn","分量",`${chars.toLocaleString()}字。Aの最短例（約1,350字）より少ない。骨格に乗っていれば分量はAの条件ではないが、設問が薄くなっていないか確認。`]);
+  else flags.push(["ok","分量",`${chars.toLocaleString()}字（CBT約${pages.toFixed(1)}ページ）。A答案の中央値は約2,200字（約3.2ページ）。分量はAの条件ではない。`]);
+  // 条文
+  if(arts.length === 0) flags.push(["bad","条文","条文番号が一つも見つからない。根拠条文を番号と文言で示す。"]);
+  else if(arts.length < 3) flags.push(["warn","条文",`条文は${arts.length}種類（${arts.join("・")}）。要件ごとの根拠条文が足りているか確認。`]);
+  else flags.push(["ok","条文",`条文${arts.length}種類：${arts.slice(0, 12).join("・")}${arts.length > 12 ? "…" : ""}`]);
+  if(quotes === 0) flags.push(["warn","文言","「」で条文の文言を引いていない。要件の文言を「」で示すとA答案に近い。"]);
+  // 数字
+  if(nums === 0) flags.push(["warn","事実",'数字つきの事実が一つもない。「約400m」「約10分」のように問題文の数字ごと引いて評価する。']);
+  else flags.push(["info","事実",`数字つきの事実を${nums}回使っている。評価が論点の要件とかみ合っているかは自分で確認（数字を引くだけでは差にならない）。`]);
+  // 事実拾い率
+  if(fc){
+    const r = fc.used.length / fc.facts.length;
+    const miss = fc.facts.filter(f => fc.used.indexOf(f) < 0).slice(0, 12);
+    flags.push([r >= .7 ? "ok" : r >= .4 ? "warn" : "bad", "拾い率", `問題文の数字つき事実${fc.facts.length}個のうち${fc.used.length}個（${Math.round(r * 100)}%）を使用。合格者の目安は7割以上。${miss.length ? "未使用：" + miss.join("・") : ""}`]);
+  }
+  // 書き写し
+  if(cr !== null){
+    if(cr > .25) flags.push(["bad","書き写し",`答案の約${Math.round(cr * 100)}%が問題文と20字以上一致。事実を写しただけで評価がない箇所がないか確認（採点実感で繰り返し減点されている）。`]);
+    else if(cr > .12) flags.push(["warn","書き写し",`答案の約${Math.round(cr * 100)}%が問題文と20字以上一致。写した事実に1文ずつ評価をつける。`]);
+    else flags.push(["ok","書き写し",`問題文との長い一致は約${Math.round(cr * 100)}%。`]);
+  }
+  // 問題提起
+  if(issues === 0) flags.push(["warn","問題提起","「〜か。」「問題となる」型の問題提起が見つからない。冒頭で誰の・何が・何条に当たるかを立てる。"]);
+  // 三段論法（ブロック）
+  const noNorm = blocks.filter(b => b.chars >= 150 && b.apply && !b.norm);
+  const noApply = blocks.filter(b => b.chars >= 150 && b.norm && !b.apply);
+  const noConc = blocks.filter(b => b.chars >= 150 && !b.conc);
+  if(noNorm.length) flags.push(["warn","三段論法",`規範の目印がないのに当てはめている段落：${noNorm.map(b => esc(b.head)).join("／")}`]);
+  if(noApply.length) flags.push(["warn","三段論法",`規範はあるが当てはめの目印（本件では・たしかに等）がない段落：${noApply.map(b => esc(b.head)).join("／")}`]);
+  if(noConc.length) flags.push(["info","結論",`結論の目印（よって・したがって等）がない段落：${noConc.map(b => esc(b.head)).join("／")}`]);
+  // 完走
+  if($("finished").value === "途中") flags.push(["bad","完走","途中答案。科目や設問が丸ごと空だとF圏。小問1つ・最後の時間切れなら残る例もある。どこで時間を使いすぎたかを振り返る。"]);
+
+  const pct = Math.min(100, chars / CBT_MAX * 100);
+  const mPos = A_MEDIAN / CBT_MAX * 100, lowPos = 1350 / CBT_MAX * 100;
+  const html = `
+    <div class="stats">
+      <div class="stat"><div class="k">文字数（空白抜き）</div><div class="v">${chars.toLocaleString()}<small>字</small></div></div>
+      <div class="stat"><div class="k">CBT換算</div><div class="v">${pages.toFixed(1)}<small>/ 4ページ</small></div></div>
+      <div class="stat"><div class="k">条文（種類）</div><div class="v">${arts.length}</div></div>
+      <div class="stat"><div class="k">数字つきの事実</div><div class="v">${nums}</div></div>
+    </div>
+    <div class="meter" aria-hidden="true">
+      <div class="fill" style="width:${pct}%"></div>
+      <div class="mark up" style="left:${lowPos}%"><span>A最短 約1,350</span></div>
+      <div class="mark" style="left:${mPos}%"><span>A中央値 約2,200</span></div>
+      <div class="mark up end" style="left:calc(100% - 2px)"><span>上限 2,760</span></div>
+    </div>
+    <ul class="flags">${flags.map(f => `<li class="${f[0]}"><span class="tag">${f[1]}</span><span>${f[2]}</span></li>`).join("")}</ul>
+    ${blocks.length > 1 ? `<h3 style="font-size:14px;margin:16px 0 6px">段落ごとの三段論法の目印</h3>
+    <div class="tablewrap"><table class="blocks"><thead><tr><th>見出し</th><th>字数</th><th>規範</th><th>当てはめ</th><th>結論</th></tr></thead><tbody>
+      ${blocks.map(b => `<tr><td>${esc(b.head)}</td><td class="c">${b.chars}</td><td class="c">${b.norm ? "◯" : "—"}</td><td class="c">${b.apply ? "◯" : "—"}</td><td class="c">${b.conc ? "◯" : "—"}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="hint">目印の語句で機械的に判定しているだけ。中身が正しいかは判定していない。</p>` : ""}`;
+  $("auto").innerHTML = html;
+  const summary = {chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
+  store.set("ytb-lastauto", summary);
+  return summary;
+}
+$("run").addEventListener("click", () => { runChecks(); saveDraft(); });
+
+/* ====== 下書きの保存 ====== */
+const FIELDS = ["exam","year","subject","minutes","problem","skeleton","answer","finished","selfnote","aiPaste"];
+function saveDraft(){ const d = {}; FIELDS.forEach(f => d[f] = $(f).value); d.self = readSelf(); store.set("ytb-draft", d); }
+function loadDraft(d){
+  if(!d) return;
+  FIELDS.forEach(f => { if(d[f] !== undefined) $(f).value = d[f]; });
+  (d.self || []).forEach((v, i) => { if(v !== null && v !== undefined){ const el = $(`sc${i}_${2 - v}`); if(el) el.checked = true; } });
+  verdict();
+}
+FIELDS.forEach(f => $(f).addEventListener("input", () => saveDraft()));
+$("clear").addEventListener("click", () => {
+  FIELDS.forEach(f => { if(f === "exam" || f === "subject" || f === "finished") return; $(f).value = ""; });
+  document.querySelectorAll('#sc input').forEach(r => r.checked = false);
+  $("auto").innerHTML = '<p class="empty">答案を貼って「自動チェック」を押すと、ここに結果が出る。</p>';
+  $("aiResult").innerHTML = ""; $("aiStatus").textContent = "";
+  verdict(); saveDraft();
+});
+
+/* ====== プロンプト ====== */
+function userMessage(){
+  const auto = runChecks() || {};
+  const s = verdict();
+  const selfTxt = s ? ITEMS.map((it, i) => `${it[0]}：${["×","△","◯"][s.v[i]]}`).join("／") + `（目安：${s.band}）` : "未入力";
+  return [
+    `試験：${$("exam").value}　年度：${$("year").value || "未入力"}　科目：${$("subject").value}　制限時間：${$("minutes").value || "未入力"}分　完走：${$("finished").value}`,
+    `起案直後の自己評価：${$("selfnote").value || "未入力"}`,
+    `自己チェック（8項目）：${selfTxt}`,
+    "",
+    "【自動チェックの結果（機械判定。参考）】",
+    ...(auto.flags || []).map(f => "- " + f),
+    "",
+    "【出題趣旨・骨格のメモ】",
+    $("skeleton").value.trim() || "（未入力。骨格は推定して明記すること）",
+    "",
+    "【問題文】",
+    $("problem").value.trim() || "（未入力）",
+    "",
+    "【答案】",
+    $("answer").value.trim()
+  ].join("\n");
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }
+  catch(e){
+    const ta = document.createElement("textarea"); ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand("copy"); }catch(e2){} ta.remove(); return ok;
+  }
+}
+$("copyPrompt").addEventListener("click", async () => {
+  if(!$("answer").value.trim()){ $("aiStatus").className = "status err"; $("aiStatus").textContent = "答案が空です。"; return; }
+  const text = SYSTEM_PROMPT + "\n\n===== 添削してほしい答案 =====\n" + userMessage();
+  const ok = await copyText(text);
+  $("aiStatus").className = "status" + (ok ? "" : " err");
+  $("aiStatus").textContent = ok ? `コピーした（${text.length.toLocaleString()}字）。Claudeの新しいチャットに貼って送れば添削される。` : "コピーできなかった。ブラウザの設定を確認してください。";
+});
+
+/* ====== API ====== */
+function modelName(){ const m = store.get("ytb-model", "claude-sonnet-5"); return m === "custom" ? (store.get("ytb-modelCustom", "") || "claude-sonnet-5") : m; }
+$("callApi").addEventListener("click", async () => {
+  const key = store.get("ytb-key", "");
+  const st = $("aiStatus");
+  if(!$("answer").value.trim()){ st.className = "status err"; st.textContent = "答案が空です。"; return; }
+  if(!key){ st.className = "status err"; st.textContent = "APIキーが未設定。「設定」タブで入れるか、「プロンプトをコピー」を使ってください。"; return; }
+  const btn = $("callApi"); btn.disabled = true;
+  st.className = "status"; st.textContent = `添削中…（${modelName()}。1〜2分かかることがある）`;
+  $("aiResult").innerHTML = "";
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body: JSON.stringify({model: modelName(), max_tokens: 8000, system: SYSTEM_PROMPT, messages: [{role:"user", content: userMessage()}]})
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+      const msg = (data && data.error && data.error.message) || res.statusText;
+      st.className = "status err";
+      st.textContent = res.status === 401 ? "APIキーが正しくないか、無効になっている（401）。設定を確認して。" : res.status === 429 ? "利用上限か混雑（429）。少し待ってからもう一度。" : res.status === 404 ? "モデル名が見つからない（404）。設定でモデルを変えて。" : `エラー（${res.status}）：${msg}`;
+      return;
+    }
+    const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
+    $("aiResult").innerHTML = md(text);
+    store.set("ytb-lastai", text);
+    st.textContent = "添削が終わった。「履歴に保存」で残せる。";
+  }catch(e){
+    st.className = "status err";
+    st.textContent = "通信できなかった。ネット接続を確認して。（" + e.message + "）";
+  }finally{ btn.disabled = false; }
+});
+
+/* ====== 履歴 ====== */
+function histAll(){ return store.get("ytb-hist", []); }
+$("saveHist").addEventListener("click", () => {
+  if(!$("answer").value.trim()){ $("aiStatus").className = "status err"; $("aiStatus").textContent = "答案が空です。"; return; }
+  const auto = runChecks() || {};
+  const s = verdict();
+  const ai = $("aiPaste").value.trim() || store.get("ytb-lastai", "");
+  const d = {}; FIELDS.forEach(f => d[f] = $(f).value); d.self = readSelf();
+  const e = {id: Date.now(), date: new Date().toLocaleString("ja-JP"), band: s ? s.band : "—", chars: auto.chars, pages: auto.pages, ai, draft: d};
+  const h = histAll(); h.unshift(e);
+  const ok = store.set("ytb-hist", h.slice(0, 200));
+  $("aiStatus").className = "status" + (ok ? "" : " err");
+  $("aiStatus").textContent = ok ? "履歴に保存した。" : "保存できなかった（ブラウザの保存領域が使えない）。「書き出す」で残して。";
+});
+function renderHist(){
+  const h = histAll(), ul = $("histList");
+  if(!h.length){ ul.innerHTML = '<li class="empty" style="display:block">まだ保存された添削はない。</li>'; return; }
+  ul.innerHTML = h.map(e => `<li>
+    <div><b>${esc(e.draft.exam)} ${esc(e.draft.year || "")} ${esc(e.draft.subject)}</b>
+    <div class="meta">${esc(e.date)}　${e.chars ? e.chars.toLocaleString() + "字・" + e.pages + "ページ" : ""}　自己チェック：${esc(e.band)}${e.ai ? "　AI添削あり" : ""}</div></div>
+    <div class="btns"><button class="ghost" data-open="${e.id}">開く</button><button class="ghost" data-del="${e.id}" aria-label="削除">削除</button></div></li>`).join("");
+}
+$("histList").addEventListener("click", ev => {
+  const o = ev.target.closest("[data-open]"), d = ev.target.closest("[data-del]");
+  if(o){ const e = histAll().find(x => String(x.id) === o.dataset.open); if(!e) return;
+    loadDraft(e.draft); runChecks(); $("aiResult").innerHTML = e.ai ? md(e.ai) : ""; $("aiStatus").className = "status"; $("aiStatus").textContent = e.date + " の添削を開いた。"; showTab("grade"); }
+  if(d){
+    if(d.dataset.confirm === "1"){ store.set("ytb-hist", histAll().filter(x => String(x.id) !== d.dataset.del)); renderHist(); }
+    else { d.dataset.confirm = "1"; d.textContent = "本当に削除"; setTimeout(() => { if(d.isConnected){ d.dataset.confirm = ""; d.textContent = "削除"; } }, 3000); }
+  }
+});
+$("exportHist").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(histAll(), null, 2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "yobi-tensaku-history.json"; document.body.appendChild(a); a.click(); a.remove();
+});
+$("importHist").addEventListener("change", ev => {
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => { try{ const arr = JSON.parse(r.result); if(!Array.isArray(arr)) throw 0; const ids = new Set(histAll().map(x => x.id)); const merged = histAll().concat(arr.filter(x => x && x.id && !ids.has(x.id))); merged.sort((a, b) => b.id - a.id); store.set("ytb-hist", merged); renderHist(); }catch(e){ alertBox("読み込めなかった。このサイトで書き出したJSONか確認して。"); } };
+  r.readAsText(f); ev.target.value = "";
+});
+function alertBox(msg){ const ul = $("histList"); const li = document.createElement("li"); li.className = "empty"; li.style.display = "block"; li.textContent = msg; ul.prepend(li); }
+
+/* ====== 設定 ====== */
+$("model").value = store.get("ytb-model", "claude-sonnet-5");
+$("modelCustom").value = store.get("ytb-modelCustom", "");
+$("apiKey").value = store.get("ytb-key", "") ? "********" : "";
+$("saveKey").addEventListener("click", () => {
+  const k = $("apiKey").value.trim();
+  if(k && k !== "********") store.set("ytb-key", k);
+  store.set("ytb-model", $("model").value);
+  store.set("ytb-modelCustom", $("modelCustom").value.trim());
+  $("apiKey").value = store.get("ytb-key", "") ? "********" : "";
+  $("setStatus").textContent = "保存した（このブラウザだけ）。";
+});
+$("delKey").addEventListener("click", () => { store.del("ytb-key"); $("apiKey").value = ""; $("setStatus").textContent = "キーを削除した。"; });
+
+/* ====== 起動 ====== */
+$("rubricView").innerHTML = md(RUBRIC);
+loadDraft(store.get("ytb-draft", null));
+const lastAi = store.get("ytb-lastai", "");
+if($("answer").value.trim()){ runChecks(); if(lastAi) $("aiResult").innerHTML = md(lastAi); }
+showTab(store.get("ytb-tab", "grade"));
+</script>
+</body>
+</html>
