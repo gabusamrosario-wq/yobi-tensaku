@@ -487,7 +487,7 @@ function fillItems(){
 }
 async function initLoader(){
   try{
-    DATA_INDEX = await getJSON("data/index.json");
+    DATA_INDEX = await getJSON("exams-index.json");
     const saved = store.get("ytb-qsel", null);
     if(saved){ $("qExam").value = saved.exam; }
     fillYears();
@@ -496,15 +496,16 @@ async function initLoader(){
   }catch(e){
     $("loader").querySelectorAll("select,button").forEach(el => el.disabled = true);
     $("qStatus").className = "status err";
-    $("qStatus").textContent = location.protocol === "file:" ? "パソコンのファイルを直接開いているので、過去問データを読めない。GitHub Pagesの URL で開くと使える。" : "過去問データ（data フォルダ）が見つからない。index.html と同じ場所に data フォルダを上げたか確認して。";
+    $("qStatus").textContent = location.protocol === "file:" ? "パソコンのファイルを直接開いているので、過去問データを読めない。GitHub Pagesの URL で開くと使える。" : "過去問データ（exams-index.json など）が見つからない。index.html と同じ場所に、zip に入っている .json ファイル4つを上げたか確認して。";
   }
 }
 $("qExam").addEventListener("change", fillYears);
 $("qYear").addEventListener("change", fillItems);
 async function loadYear(exam, year){
-  const k = exam + "/" + year;
-  if(!yearCache[k]) yearCache[k] = await getJSON(`data/${exam}/${year}.json`);
-  return yearCache[k];
+  if(!yearCache[exam]) yearCache[exam] = await getJSON(`${exam}-data.json`);
+  const rec = yearCache[exam][year];
+  if(!rec) throw new Error("年度のデータがない：" + year);
+  return rec;
 }
 function skelMemo(it){
   const sk = it.skel;

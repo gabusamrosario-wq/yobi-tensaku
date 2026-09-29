@@ -32,7 +32,7 @@
    - 「Create repository」を押す。
 2. **ファイルを上げる**
    - できたページの「uploading an existing file」を押す。
-   - zip を展開した中身（`index.html`・`README.md`・`data` フォルダ）をまとめてドラッグして入れる。**`data` フォルダも必ず入れる**（問題文のデータ）。
+   - zip を展開した中の6ファイル（`index.html`・`README.md`・`exams-index.json`・`yobi-data.json`・`shiho-data.json`・`kyushi-data.json`）をまとめてドラッグして入れる。**.json の4つも必ず入れる**（問題文のデータ）。フォルダはない。
    - 下の「Commit changes」を押す。
 3. **Pages を有効にする**
    - リポジトリの「Settings」→ 左の「Pages」を開く。
