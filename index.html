@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>予備論文 添削ボード</title>
-<meta name="description" content="予備試験・旧司法試験の論文答案を、合格答案の基準と比べて添削するためのツール">
+<meta name="description" content="予備試験・司法試験・旧司法試験の論文答案を、出題趣旨と合格答案の基準に照らして自動で評価・添削するツール">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho+B1:wght@600;800&family=JetBrains+Mono:wght@500&display=swap">
@@ -113,6 +113,29 @@ table.blocks td.c{text-align:center;font-family:var(--mono)}
 .hist li .meta{font-size:12px;color:var(--muted)}
 .empty{color:var(--muted);font-size:14px}
 footer{margin-top:40px;font-size:12px;color:var(--muted)}
+.load{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;align-items:end;padding:12px;margin-bottom:12px;background:var(--sunken);border:1px dashed var(--line);border-radius:6px}
+.load .t{grid-column:1/-1;font-size:13px;font-weight:500;color:var(--ink);margin:0}
+.load button{height:40px}
+.src{font-size:12px;color:var(--muted);margin:6px 0 0}
+.src a{color:var(--accent)}
+.ev{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px;background:var(--sunken)}
+.ev .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+.ev .band{font-family:var(--serif);font-weight:800;font-size:28px;line-height:1.2}
+.ev .band.A{color:var(--ok)} .ev .band.B{color:var(--accent)} .ev .band.C{color:var(--warn)} .ev .band.D{color:var(--shu)}
+.ev .score{font-family:var(--mono);font-size:14px;color:var(--muted)}
+.bar{height:8px;background:var(--line);border-radius:4px;margin:8px 0 10px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+table.pil{width:100%;border-collapse:collapse;font-size:13px}
+table.pil td,table.pil th{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:top}
+table.pil th{font-weight:500;color:var(--muted);white-space:nowrap}
+table.pil td.m{font-family:var(--mono);text-align:center;white-space:nowrap}
+table.pil tr.hit td.m{color:var(--ok)} table.pil tr.miss td.m{color:var(--shu)}
+table.pil .note{display:block;font-size:12px;color:var(--muted)}
+table.pil .kw{font-size:12px;color:var(--muted)}
+.why{margin:8px 0 0;padding-left:1.2em;font-size:13px}
+details.sh{margin-top:10px;font-size:13px}
+details.sh summary{cursor:pointer;color:var(--accent)}
+details.sh div{white-space:pre-wrap;margin-top:6px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;max-height:360px;overflow:auto}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -120,7 +143,7 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
 <body>
 <div class="wrap">
   <header>
-    <h1><small>予備試験・旧司 論文</small>予備論文 添削ボード</h1>
+    <h1><small>予備・司法・旧司 論文</small>予備論文 添削ボード</h1>
     <nav role="tablist" aria-label="画面の切り替え">
       <button role="tab" id="tab-grade" aria-selected="true" aria-controls="p-grade">添削</button>
       <button role="tab" id="tab-rubric" aria-selected="false" aria-controls="p-rubric">合格答案の基準</button>
@@ -135,14 +158,24 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
       <div class="col">
         <div class="card">
           <h2><span class="step">1</span>問題</h2>
+          <div class="load" id="loader">
+            <p class="t">過去問を読み込む（問題文と出題趣旨が入り、APIなしの自動評価が使える）</p>
+            <label for="qExam">試験<select id="qExam"><option value="yobi">予備試験</option><option value="shiho">司法試験</option><option value="kyushi">旧司法試験</option></select></label>
+            <label for="qYear">年度<select id="qYear"></select></label>
+            <label for="qItem" style="grid-column:span 2">科目<select id="qItem"></select></label>
+            <button class="primary" id="qLoad">読み込む</button>
+            <p class="status" id="qStatus" role="status" aria-live="polite" style="grid-column:1/-1;margin:0"></p>
+          </div>
           <div class="row">
-            <label for="exam">試験<select id="exam"><option>予備</option><option>旧司</option><option>その他</option></select></label>
+            <label for="exam">試験<select id="exam"><option>予備</option><option>司法</option><option>旧司</option><option>その他</option></select></label>
             <label for="year">年度<input id="year" placeholder="令和6年"></label>
             <label for="subject">科目<select id="subject"></select></label>
             <label for="minutes">制限時間（分）<input id="minutes" type="number" min="0" placeholder="70"></label>
           </div>
           <label for="problem" style="margin-top:10px">問題文（任意。貼ると事実の拾い率と書き写しを調べる）<textarea id="problem" placeholder="問題文を貼る"></textarea></label>
-          <label for="skeleton" style="margin-top:10px">出題趣旨・模範答案の骨格（任意。主要な条文・論点・検討順序をメモ）<textarea id="skeleton" placeholder="例：①206条の2の手続 ②その瑕疵が無効事由になるか ③…"></textarea></label>
+          <label for="skeleton" style="margin-top:10px">出題趣旨・模範答案の骨格（任意。主要な条文・論点・検討順序をメモ）<textarea id="skeleton" placeholder="例：①206条の2の手続 ②その瑕疵が無効事由になるか ③…（1行1論点で書くと、その語句で自動評価する）"></textarea></label>
+          <input type="hidden" id="qkey">
+          <p class="src" id="qSrc"></p>
         </div>
         <div class="card">
           <h2><span class="step">2</span>答案</h2>
@@ -153,7 +186,7 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
             <label for="selfnote" style="grid-column:span 3">起案直後の自己評価<input id="selfnote" placeholder="例：設問2が薄い。157条の要件を分け忘れた"></label>
           </div>
           <div class="btns" style="margin-top:12px">
-            <button class="primary" id="run">自動チェック</button>
+            <button class="primary" id="run">自動評価・チェック</button>
             <button class="ghost" id="clear">入力を消す</button>
           </div>
           <p class="hint">入力内容はこのブラウザの中だけに保存される。GitHubにもどこにも送られない（AI添削を使ったときだけ、Anthropicに送られる）。</p>
@@ -162,8 +195,8 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
 
       <div class="col">
         <div class="card" id="autoCard">
-          <h2><span class="step">3</span>自動チェック</h2>
-          <div id="auto"><p class="empty">答案を貼って「自動チェック」を押すと、ここに結果が出る。</p></div>
+          <h2><span class="step">3</span>自動評価（APIなし）と自動チェック</h2>
+          <div id="auto"><p class="empty">答案を貼って「自動評価・チェック」を押すと、ここに結果が出る。過去問を読み込むと、出題趣旨の論点に触れているかで評価の目安も出る。</p></div>
         </div>
         <div class="card">
           <h2><span class="step">4</span>自己チェック（合格答案と比べる8項目）</h2>
@@ -171,7 +204,7 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
           <div class="verdict" id="verdict"><span class="band">—</span><span class="status">8項目を選ぶと目安が出る</span></div>
         </div>
         <div class="card">
-          <h2><span class="step">5</span>AI添削</h2>
+          <h2><span class="step">5</span>AI添削（任意）</h2>
           <p class="hint" style="margin-top:0">APIキーがなくても、「プロンプトをコピー」してClaudeに貼れば同じ形式で添削される。</p>
           <div class="btns" style="margin-top:8px">
             <button class="ghost" id="copyPrompt">プロンプトをコピー</button>
@@ -226,7 +259,7 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
     </div>
   </section>
 
-  <footer>基準は、法務省の公式資料（予備試験の出題趣旨・方式等の申合せ・合格点、司法試験の採点実感）と、無料公開されている評価つき再現答案（R3〜R7）の分析をもとにまとめたもの。評価の推定は目安で、実際の採点とは異なりうる。</footer>
+  <footer>問題文・出題趣旨の出典：法務省ウェブサイト（<a href="https://www.moj.go.jp/jinji/shihoushiken/shikaku_saiyo_index.html" style="color:inherit">司法試験・司法試験予備試験</a>）。PDFから文字を取り出し、科目ごとに分け、改行を整えて掲載（編集・加工あり）。論点キーワードは本サイトが作成したもので、法務省が作成したものではない。<br>基準は、法務省の公式資料（予備試験の出題趣旨・方式等の申合せ・合格点、司法試験の採点実感）と、無料公開されている評価つき再現答案（R3〜R7）の分析をもとにまとめたもの。評価の推定は目安で、実際の採点とは異なりうる。</footer>
 </div>
 
 <script>
@@ -429,6 +462,156 @@ tabs.forEach(t => $("tab-" + t).addEventListener("click", () => showTab(t)));
 const SUBJECTS = ["憲法","行政法","民法","商法","民事訴訟法","刑法","刑事訴訟法","法律実務基礎（民事）","法律実務基礎（刑事）","選択科目","一般教養"];
 $("subject").innerHTML = SUBJECTS.map(s => `<option>${s}</option>`).join("");
 
+
+/* ====== 過去問の読み込み（法務省の問題文・出題趣旨） ====== */
+const EXAM_NAME = {yobi:"予備", shiho:"司法", kyushi:"旧司"};
+const SUBJ_MAP = {"民訴":"民事訴訟法","刑訴":"刑事訴訟法","実務民事":"法律実務基礎（民事）","実務刑事":"法律実務基礎（刑事）","一般教養":"一般教養","民事系":"民事系（融合）"};
+let DATA_INDEX = null, CUR = null;   // CUR = {key, item, rec}
+const yearCache = {};
+function subjName(sub){ if(SUBJ_MAP[sub]) return SUBJ_MAP[sub]; if(SUBJECTS.indexOf(sub) >= 0) return sub; return /^(倒産法|租税法|経済法|知的財産法|労働法|環境法|国際公法|国際私法)$/.test(sub) ? "選択科目" : sub; }
+function ensureSubject(name){ if(![...$("subject").options].some(o => o.value === name)){ const o = document.createElement("option"); o.textContent = name; $("subject").appendChild(o); } $("subject").value = name; }
+async function getJSON(path){
+  const r = await fetch(path, {cache: "no-cache"});
+  if(!r.ok) throw new Error(r.status + " " + path);
+  return r.json();
+}
+function fillYears(){
+  const ex = DATA_INDEX && DATA_INDEX.exams.find(e => e.id === $("qExam").value);
+  $("qYear").innerHTML = ex ? ex.years.map(y => `<option value="${y.year}">${esc(y.label)}</option>`).join("") : "";
+  fillItems();
+}
+function fillItems(){
+  const ex = DATA_INDEX && DATA_INDEX.exams.find(e => e.id === $("qExam").value);
+  const y = ex && ex.years.find(y => y.year === $("qYear").value);
+  $("qItem").innerHTML = y ? y.items.map(it => `<option value="${esc(it.id)}">${esc(it.title)}</option>`).join("") : "";
+}
+async function initLoader(){
+  try{
+    DATA_INDEX = await getJSON("data/index.json");
+    const saved = store.get("ytb-qsel", null);
+    if(saved){ $("qExam").value = saved.exam; }
+    fillYears();
+    if(saved){ $("qYear").value = saved.year; fillItems(); $("qItem").value = saved.item; }
+    $("qStatus").textContent = "";
+  }catch(e){
+    $("loader").querySelectorAll("select,button").forEach(el => el.disabled = true);
+    $("qStatus").className = "status err";
+    $("qStatus").textContent = location.protocol === "file:" ? "パソコンのファイルを直接開いているので、過去問データを読めない。GitHub Pagesの URL で開くと使える。" : "過去問データ（data フォルダ）が見つからない。index.html と同じ場所に data フォルダを上げたか確認して。";
+  }
+}
+$("qExam").addEventListener("change", fillYears);
+$("qYear").addEventListener("change", fillItems);
+async function loadYear(exam, year){
+  const k = exam + "/" + year;
+  if(!yearCache[k]) yearCache[k] = await getJSON(`data/${exam}/${year}.json`);
+  return yearCache[k];
+}
+function skelMemo(it){
+  const sk = it.skel;
+  const lines = [];
+  if(sk && sk.pillars.length){
+    lines.push("【論点（自動評価に使うキーワード）】");
+    sk.pillars.forEach((p, i) => lines.push(`${i + 1}. ${p.label}${p.core ? "（枠組み）" : ""}：${p.any.join("／")}`));
+    if(sk.articles && sk.articles.length) lines.push("条文：" + sk.articles.map(a => a.label).join("、"));
+    lines.push("");
+  }
+  if(it.shushi) lines.push("【出題趣旨（法務省）】", it.shushi);
+  return lines.join("\n");
+}
+function showSource(){
+  const rec = CUR && CUR.rec;
+  $("qSrc").innerHTML = rec ? "出典：法務省ウェブサイト " + rec.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join("、") + "（テキストを抽出・整形）" + (rec.saiten && rec.saiten.length ? "。採点実感：" + rec.saiten.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.subject)}</a>`).join("・") : "") : "";
+}
+async function selectItem(key, fill){
+  const [exam, year, id] = key.split("/");
+  const rec = await loadYear(exam, year);
+  const it = rec.items.find(x => x.id === id);
+  if(!it) throw new Error("科目が見つからない");
+  CUR = {key, item: it, rec};
+  if(fill){
+    $("exam").value = EXAM_NAME[exam];
+    $("year").value = rec.yearLabel;
+    ensureSubject(subjName(it.subject));
+    $("problem").value = it.problem;
+    $("skeleton").value = skelMemo(it);
+    $("qkey").value = key;
+    if(!$("minutes").value) $("minutes").value = exam === "shiho" ? 120 : exam === "kyushi" ? 60 : 70;
+  }
+  showSource();
+}
+$("qLoad").addEventListener("click", async () => {
+  const exam = $("qExam").value, year = $("qYear").value, id = $("qItem").value;
+  if(!year || !id) return;
+  const had = $("problem").value.trim() && $("qkey").value !== `${exam}/${year}/${id}`;
+  const st = $("qStatus");
+  if(had && $("qLoad").dataset.confirm !== "1"){
+    $("qLoad").dataset.confirm = "1"; $("qLoad").textContent = "上書きして読む";
+    st.className = "status"; st.textContent = "今の問題文とメモを置き換える。答案はそのまま残る。";
+    setTimeout(() => { $("qLoad").dataset.confirm = ""; $("qLoad").textContent = "読み込む"; }, 4000);
+    return;
+  }
+  $("qLoad").dataset.confirm = ""; $("qLoad").textContent = "読み込む";
+  try{
+    st.className = "status"; st.textContent = "読み込み中…";
+    await selectItem(`${exam}/${year}/${id}`, true);
+    store.set("ytb-qsel", {exam, year, item: id});
+    saveDraft();
+    const sk = CUR.item.skel;
+    st.textContent = `${CUR.rec.yearLabel} ${CUR.item.title} を読み込んだ。` + (sk ? `論点${sk.pillars.length}本で自動評価できる（${sk.source === "curated" ? "精選キーワード" : "出題趣旨から自動抽出したキーワード"}）。` : "この問題は論点キーワードがないので、分量などの形式面だけ評価する。");
+    if($("answer").value.trim()) runChecks();
+  }catch(e){ st.className = "status err"; st.textContent = "読み込めなかった：" + e.message; }
+});
+
+/* ====== 自動評価（APIなし）：出題趣旨の論点キーワードに答案が触れているか ====== */
+function nz(t){ return (t || "").normalize("NFKC").replace(/\s+/g, "").replace(/(^|[^0-9])第([0-9])/g, "$1$2"); }
+function memoSkel(memo){
+  // 自分で書いた骨格メモ（1行1論点）から柱を作る
+  const lines = memo.split(/\n|[①②③④⑤⑥⑦⑧⑨⑩]/).map(l => l.replace(/^\s*([0-9]+[.．、)]|[・\-*])\s*/, "").trim()).filter(l => l && !/^(【|条文：)/.test(l));
+  const pillars = lines.slice(0, 12).map(l => {
+    const kws = l.split(/[、，,・／/｜|：:（）()\s]+/).map(k => k.trim()).filter(k => nz(k).length >= 2 && nz(k).length <= 14);
+    return {label: l.slice(0, 40), w: 1, any: kws.length ? kws : [l.slice(0, 14)]};
+  }).filter(p => p.any.length);
+  const arts = [...new Set((nz(memo).match(/[0-9]+条(?:の[0-9]+)?/g) || []))].map(a => ({label: a, any: [a]}));
+  return pillars.length ? {source: "memo", pillars, articles: arts} : null;
+}
+const BANDS = ["A圏", "B圏", "C圏", "D〜F圏"];
+function autoEval(ans, sk, form){
+  const A = nz(ans);
+  const pil = sk.pillars.map(p => {
+    const hit = p.any.find(k => { const n = nz(k); return n.length >= 2 && A.indexOf(n) >= 0; });
+    return Object.assign({}, p, {w: p.w || 1, hit: hit || null});
+  });
+  const tw = pil.reduce((a, p) => a + p.w, 0), hw = pil.reduce((a, p) => a + (p.hit ? p.w : 0), 0);
+  const cov = tw ? hw / tw : 0;
+  const arts = (sk.articles || []).map(a => ({label: a.label, hit: a.any.some(k => A.indexOf(nz(k)) >= 0)}));
+  const ac = arts.length ? arts.filter(a => a.hit).length / arts.length : null;
+  const score = ac === null ? cov : cov * 0.8 + ac * 0.2;
+  let b = score >= .7 ? 0 : score >= .5 ? 1 : score >= .3 ? 2 : 3;
+  const why = [];
+  const core = pil.find(p => p.core);
+  if(core && !core.hit && b < 2){ b = 2; why.push(`枠組みの論点「${core.label}」の語が見当たらない。骨格を外すと評価は大きく下がる`); }
+  if(form.finished === "途中" && b < 1){ b = 1; why.push("途中答案なのでA圏にはしない"); }
+  if(form.chars < 1000 && b < 3){ b++; why.push(`分量が${form.chars}字と少ない（A答案の最短例は約1,350字）`); }
+  if(form.copy !== null && form.copy > .25 && b < 3){ b++; why.push(`問題文の書き写しが約${Math.round(form.copy * 100)}%ある`); }
+  if(form.arts === 0 && b < 3){ b++; why.push("条文番号が一つもない"); }
+  const miss = pil.filter(p => !p.hit).sort((x, y) => y.w - x.w);
+  return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source};
+}
+function renderEval(ev){
+  const src = ev.source === "curated" ? "出題趣旨をもとに精選した論点キーワード" : ev.source === "auto" ? "出題趣旨から機械的に抜き出した論点キーワード（精度は低め）" : "あなたの骨格メモの語句";
+  return `<div class="ev">
+    <div class="top"><span class="band ${ev.cls}">${ev.band}</span><span class="score">論点カバー ${Math.round(ev.cov * 100)}%${ev.ac !== null ? "・条文 " + Math.round(ev.ac * 100) + "%" : ""}・総合 ${Math.round(ev.score * 100)}点</span></div>
+    <div class="bar" aria-hidden="true"><i style="width:${Math.round(ev.score * 100)}%"></i></div>
+    ${ev.why.length ? `<ul class="why">${ev.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+    <div class="tablewrap" style="margin-top:8px"><table class="pil"><thead><tr><th></th><th>論点（重み）</th><th>答案に出てきた語</th></tr></thead><tbody>
+      ${ev.pil.map(p => `<tr class="${p.hit ? "hit" : "miss"}"><td class="m">${p.hit ? "◯" : "×"}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.hit ? "" : `<span class="kw">探した語：${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td></tr>`).join("")}
+    </tbody></table></div>
+    ${ev.arts.length ? `<p class="hint">出題趣旨の条文：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
+    <p class="hint">判定のもと：${src}。語句が答案にあるかだけを見ていて、論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。点は目安で、実際の採点とは異なる。</p>
+    ${CUR && CUR.item && CUR.item.shushi ? `<details class="sh"><summary>出題趣旨を読む（法務省）</summary><div>${esc(CUR.item.shushi)}</div></details>` : ""}
+  </div>`;
+}
+
 /* ====== 自己チェック8項目 ====== */
 const ITEMS = [
   ["骨格（最重要）", "中心の条文・判例の枠組みを選べたか。出題趣旨の検討順序に乗っているか。別の枠組みで書いていないか。", 4],
@@ -596,15 +779,20 @@ function runChecks(){
       ${blocks.map(b => `<tr><td>${esc(b.head)}</td><td class="c">${b.chars}</td><td class="c">${b.norm ? "◯" : "—"}</td><td class="c">${b.apply ? "◯" : "—"}</td><td class="c">${b.conc ? "◯" : "—"}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="hint">目印の語句で機械的に判定しているだけ。中身が正しいかは判定していない。</p>` : ""}`;
-  $("auto").innerHTML = html;
-  const summary = {chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
+  // 自動評価
+  let ev = null;
+  const key = $("qkey").value;
+  const sk = (CUR && CUR.key === key && CUR.item.skel) ? CUR.item.skel : memoSkel($("skeleton").value.replace(/【出題趣旨（法務省）】[\s\S]*$/, ""));
+  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length});
+  $("auto").innerHTML = (ev ? renderEval(ev) : `<p class="hint" style="margin-top:0">評価の目安を出すには、上の「過去問を読み込む」を使うか、骨格メモに論点を1行ずつ書く。</p>`) + html;
+  const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
   store.set("ytb-lastauto", summary);
   return summary;
 }
 $("run").addEventListener("click", () => { runChecks(); saveDraft(); });
 
 /* ====== 下書きの保存 ====== */
-const FIELDS = ["exam","year","subject","minutes","problem","skeleton","answer","finished","selfnote","aiPaste"];
+const FIELDS = ["exam","year","subject","minutes","problem","skeleton","answer","finished","selfnote","aiPaste","qkey"];
 function saveDraft(){ const d = {}; FIELDS.forEach(f => d[f] = $(f).value); d.self = readSelf(); store.set("ytb-draft", d); }
 function loadDraft(d){
   if(!d) return;
@@ -615,6 +803,7 @@ function loadDraft(d){
 FIELDS.forEach(f => $(f).addEventListener("input", () => saveDraft()));
 $("clear").addEventListener("click", () => {
   FIELDS.forEach(f => { if(f === "exam" || f === "subject" || f === "finished") return; $(f).value = ""; });
+  CUR = null; showSource();
   document.querySelectorAll('#sc input').forEach(r => r.checked = false);
   $("auto").innerHTML = '<p class="empty">答案を貼って「自動チェック」を押すと、ここに結果が出る。</p>';
   $("aiResult").innerHTML = ""; $("aiStatus").textContent = "";
@@ -630,6 +819,8 @@ function userMessage(){
     `試験：${$("exam").value}　年度：${$("year").value || "未入力"}　科目：${$("subject").value}　制限時間：${$("minutes").value || "未入力"}分　完走：${$("finished").value}`,
     `起案直後の自己評価：${$("selfnote").value || "未入力"}`,
     `自己チェック（8項目）：${selfTxt}`,
+    "",
+    `自動評価（キーワード判定）：${auto.autoBand ? auto.autoBand + "（" + auto.autoScore + "点）。触れていない論点：" + (auto.missed.join("、") || "なし") : "なし"}`,
     "",
     "【自動チェックの結果（機械判定。参考）】",
     ...(auto.flags || []).map(f => "- " + f),
@@ -700,7 +891,7 @@ $("saveHist").addEventListener("click", () => {
   const s = verdict();
   const ai = $("aiPaste").value.trim() || store.get("ytb-lastai", "");
   const d = {}; FIELDS.forEach(f => d[f] = $(f).value); d.self = readSelf();
-  const e = {id: Date.now(), date: new Date().toLocaleString("ja-JP"), band: s ? s.band : "—", chars: auto.chars, pages: auto.pages, ai, draft: d};
+  const e = {id: Date.now(), date: new Date().toLocaleString("ja-JP"), band: s ? s.band : "—", autoBand: auto.autoBand || null, autoScore: auto.autoScore, chars: auto.chars, pages: auto.pages, ai, draft: d};
   const h = histAll(); h.unshift(e);
   const ok = store.set("ytb-hist", h.slice(0, 200));
   $("aiStatus").className = "status" + (ok ? "" : " err");
@@ -711,13 +902,13 @@ function renderHist(){
   if(!h.length){ ul.innerHTML = '<li class="empty" style="display:block">まだ保存された添削はない。</li>'; return; }
   ul.innerHTML = h.map(e => `<li>
     <div><b>${esc(e.draft.exam)} ${esc(e.draft.year || "")} ${esc(e.draft.subject)}</b>
-    <div class="meta">${esc(e.date)}　${e.chars ? e.chars.toLocaleString() + "字・" + e.pages + "ページ" : ""}　自己チェック：${esc(e.band)}${e.ai ? "　AI添削あり" : ""}</div></div>
+    <div class="meta">${esc(e.date)}　${e.chars ? e.chars.toLocaleString() + "字・" + e.pages + "ページ" : ""}　${e.autoBand ? "自動評価：" + esc(e.autoBand) + "（" + e.autoScore + "点）　" : ""}自己チェック：${esc(e.band)}${e.ai ? "　AI添削あり" : ""}</div></div>
     <div class="btns"><button class="ghost" data-open="${e.id}">開く</button><button class="ghost" data-del="${e.id}" aria-label="削除">削除</button></div></li>`).join("");
 }
-$("histList").addEventListener("click", ev => {
+$("histList").addEventListener("click", async ev => {
   const o = ev.target.closest("[data-open]"), d = ev.target.closest("[data-del]");
   if(o){ const e = histAll().find(x => String(x.id) === o.dataset.open); if(!e) return;
-    loadDraft(e.draft); runChecks(); $("aiResult").innerHTML = e.ai ? md(e.ai) : ""; $("aiStatus").className = "status"; $("aiStatus").textContent = e.date + " の添削を開いた。"; showTab("grade"); }
+    loadDraft(e.draft); await restoreCur(); runChecks(); $("aiResult").innerHTML = e.ai ? md(e.ai) : ""; $("aiStatus").className = "status"; $("aiStatus").textContent = e.date + " の添削を開いた。"; showTab("grade"); }
   if(d){
     if(d.dataset.confirm === "1"){ store.set("ytb-hist", histAll().filter(x => String(x.id) !== d.dataset.del)); renderHist(); }
     else { d.dataset.confirm = "1"; d.textContent = "本当に削除"; setTimeout(() => { if(d.isConnected){ d.dataset.confirm = ""; d.textContent = "削除"; } }, 3000); }
@@ -750,11 +941,21 @@ $("saveKey").addEventListener("click", () => {
 $("delKey").addEventListener("click", () => { store.del("ytb-key"); $("apiKey").value = ""; $("setStatus").textContent = "キーを削除した。"; });
 
 /* ====== 起動 ====== */
-$("rubricView").innerHTML = md(RUBRIC);
-loadDraft(store.get("ytb-draft", null));
-const lastAi = store.get("ytb-lastai", "");
-if($("answer").value.trim()){ runChecks(); if(lastAi) $("aiResult").innerHTML = md(lastAi); }
-showTab(store.get("ytb-tab", "grade"));
+async function restoreCur(){
+  const k = $("qkey").value;
+  CUR = null;
+  if(k && DATA_INDEX){ try{ await selectItem(k, false); }catch(e){} }
+  showSource();
+}
+(async () => {
+  $("rubricView").innerHTML = md(RUBRIC);
+  loadDraft(store.get("ytb-draft", null));
+  showTab(store.get("ytb-tab", "grade"));
+  await initLoader();
+  await restoreCur();
+  const lastAi = store.get("ytb-lastai", "");
+  if($("answer").value.trim()){ runChecks(); if(lastAi) $("aiResult").innerHTML = md(lastAi); }
+})();
 </script>
 </body>
 </html>
