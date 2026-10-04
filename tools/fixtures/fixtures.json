@@ -1,0 +1,74 @@
+[
+  {
+    "file": "R6-keiso-good.txt",
+    "exam": "yobi",
+    "year": "R6",
+    "id": "刑訴",
+    "finished": "完走",
+    "expect": [
+      "A圏",
+      "B圏"
+    ],
+    "memo": "判例の枠組み（顕著な特徴・偶然性の排除）で両設問を論じた答案"
+  },
+  {
+    "file": "R6-keiso-offtrack.txt",
+    "exam": "yobi",
+    "year": "R6",
+    "id": "刑訴",
+    "finished": "完走",
+    "expect": [
+      "C圏",
+      "D〜F圏"
+    ],
+    "memo": "伝聞法則・自白法則で論じた、骨格を外した答案"
+  },
+  {
+    "file": "R6-keiso-q1only.txt",
+    "exam": "yobi",
+    "year": "R6",
+    "id": "刑訴",
+    "finished": "途中",
+    "expect": [
+      "C圏",
+      "D〜F圏"
+    ],
+    "memo": "設問1だけで時間切れの途中答案"
+  },
+  {
+    "file": "R7-roudou-good.txt",
+    "exam": "yobi",
+    "year": "R7",
+    "id": "労働法",
+    "finished": "完走",
+    "expect": [
+      "A圏",
+      "B圏"
+    ],
+    "memo": "労働時間の概念・法内残業・休憩の労働時間性・定額手当の判別可能性を論じた答案"
+  },
+  {
+    "file": "R7-roudou-offtrack.txt",
+    "exam": "yobi",
+    "year": "R7",
+    "id": "労働法",
+    "finished": "完走",
+    "expect": [
+      "C圏",
+      "D〜F圏"
+    ],
+    "memo": "就業規則の定めだけで判断し、判例の枠組みを使っていない答案"
+  },
+  {
+    "file": "R6-keiso-q1only.txt",
+    "exam": "yobi",
+    "year": "R6",
+    "id": "刑訴",
+    "finished": "完走",
+    "expect": [
+      "C圏",
+      "D〜F圏"
+    ],
+    "memo": "同じ途中答案で「完走」を選んでしまった場合（設問2が空なのを自動で見つける）"
+  }
+]

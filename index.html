@@ -129,7 +129,7 @@ table.pil{width:100%;border-collapse:collapse;font-size:13px}
 table.pil td,table.pil th{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:top}
 table.pil th{font-weight:500;color:var(--muted);white-space:nowrap}
 table.pil td.m{font-family:var(--mono);text-align:center;white-space:nowrap}
-table.pil tr.hit td.m{color:var(--ok)} table.pil tr.miss td.m{color:var(--shu)}
+table.pil tr.hit td.m{color:var(--ok)} table.pil tr.weak td.m{color:var(--warn)} table.pil tr.miss td.m{color:var(--shu)}
 table.pil .note{display:block;font-size:12px;color:var(--muted)}
 table.pil .kw{font-size:12px;color:var(--muted)}
 .why{margin:8px 0 0;padding-left:1.2em;font-size:13px}
@@ -564,7 +564,29 @@ $("qLoad").addEventListener("click", async () => {
 });
 
 /* ====== 自動評価（APIなし）：出題趣旨の論点キーワードに答案が触れているか ====== */
-function nz(t){ return (t || "").normalize("NFKC").replace(/\s+/g, "").replace(/(^|[^0-9])第([0-9])/g, "$1$2"); }
+// 照合用の正規化：全角半角・空白・「第」をそろえ、法律文の表記ゆれ（送り仮名・漢数字の条番号）を一つの形にする
+const KANSUJI = {"〇":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+function kan2num(k){
+  let n = 0, cur = 0;
+  for(const c of k){
+    if(c === "百"){ n += (cur || 1) * 100; cur = 0; }
+    else if(c === "十"){ n += (cur || 1) * 10; cur = 0; }
+    else cur = cur * 10 + KANSUJI[c];
+  }
+  return n + cur;
+}
+const YURE = [
+  [/取り?消し?/g, "取消"], [/引き?渡し?/g, "引渡"], [/差し?押さ?え?/g, "差押"], [/申し?立て?/g, "申立"], [/申し?込み?/g, "申込"],
+  [/立ち?入り?/g, "立入"], [/払い?戻し?/g, "払戻"], [/受け?取り?/g, "受取"], [/取り?扱い?/g, "取扱"], [/取り?調べ?/g, "取調"],
+  [/明け?渡し?/g, "明渡"], [/譲り?受け?/g, "譲受"], [/譲り?渡し?/g, "譲渡"], [/打ち?合わ?せ?/g, "打合"], [/繰り?返し?/g, "繰返"],
+  [/恐れ|虞/g, "おそれ"], [/行なう/g, "行う"], [/出来る/g, "できる"]
+];
+function nz(t){
+  let s = (t || "").normalize("NFKC").replace(/\s+/g, "");
+  s = s.replace(/([〇一二三四五六七八九十百]+)(条|項|号)/g, (m, k, u) => kan2num(k) + u);
+  YURE.forEach(([re, to]) => { s = s.replace(re, to); });
+  return s.replace(/(^|[^0-9])第([0-9])/g, "$1$2");
+}
 function memoSkel(memo){
   // 自分で書いた骨格メモ（1行1論点）から柱を作る
   const lines = memo.split(/\n|[①②③④⑤⑥⑦⑧⑨⑩]/).map(l => l.replace(/^\s*([0-9]+[.．、)]|[・\-*])\s*/, "").trim()).filter(l => l && !/^(【|条文：)/.test(l));
@@ -576,13 +598,55 @@ function memoSkel(memo){
   return pillars.length ? {source: "memo", pillars, articles: arts} : null;
 }
 const BANDS = ["A圏", "B圏", "C圏", "D〜F圏"];
+// 事実や問題文の語を自分で評価している文の目印
+const RE_EVAL = /(といえ|とはいえ|いえない|認められ|認められない|当たる|当たら|該当|評価|にすぎ|べき|ため|ので|から、|からすれば|考慮)/;
+// 答案の文のうち、問題文と20字以上一致する部分が半分を超える文は「書き写し」とみる
+function copiedSentence(s, P){
+  if(!P) return false;
+  if(P.indexOf(s) >= 0) return true;
+  if(s.length < 20) return false;
+  const cov = new Uint8Array(s.length);
+  for(let i = 0; i + 20 <= s.length; i += 2){ if(P.indexOf(s.slice(i, i + 20)) >= 0) cov.fill(1, i, i + 20); }
+  return cov.reduce((a, x) => a + x, 0) / s.length > .5;
+}
+// 柱の判定：◯（問題文にない語で触れた／問題文の語を自分で評価した）、△（問題文にある語を出しただけ）、×
+function judgePillar(p, A, P, sents){
+  const keys = p.any.map(nz).filter(n => n.length >= 2);
+  const own = keys.find(n => A.indexOf(n) >= 0 && (!P || P.indexOf(n) < 0));
+  if(own) return {level: 2, hit: p.any[keys.indexOf(own)]};
+  const shared = keys.filter(n => A.indexOf(n) >= 0);
+  if(!shared.length) return {level: 0, hit: null};
+  const used = shared.find(n => sents.some(s => s.indexOf(n) >= 0 && RE_EVAL.test(s) && !copiedSentence(s, P)));
+  if(used) return {level: 2, hit: p.any[keys.indexOf(used)]};
+  return {level: 1, hit: p.any[keys.indexOf(shared[0])]};
+}
+// 答案を設問ごとに分ける（「設問2」「第2」で始まる行を区切りにする）。見出しがなければ null
+// 「第N」だけの見出しは「第1 甲の罪責」のように設問と対応しないことがあるので、
+// 番号の組が設問の組と一致するときだけ使う（want：設問番号の配列）
+function sectionsOf(ans, want){
+  const split = re => {
+    const out = {}; let cur = null, found = false;
+    ans.split("\n").forEach(l => {
+      const n = nfkc(l).trim(), m = n.match(re);
+      if(m){ cur = m[1]; found = true; out[cur] = (out[cur] || "") + n.replace(m[0], "") + "\n"; }
+      else if(cur) out[cur] += l + "\n";
+    });
+    return found ? out : null;
+  };
+  const byQ = split(/^[〔【\[(（]?\s*(?:第\s*[0-9]+\s*)?設問\s*([0-9]+)/);
+  if(byQ) return byQ;
+  const byDai = split(/^第\s*([0-9]+)(?:\s|$|[.．、])/);
+  if(byDai && want && Object.keys(byDai).sort().join() === [...want].sort().join()) return byDai;
+  return null;
+}
 function autoEval(ans, sk, form){
-  const A = nz(ans);
+  const A = nz(ans), P = nz(form.prob || "");
+  const sents = A.split(/[。\n]/).filter(s => s.length >= 2);
   const pil = sk.pillars.map(p => {
-    const hit = p.any.find(k => { const n = nz(k); return n.length >= 2 && A.indexOf(n) >= 0; });
-    return Object.assign({}, p, {w: p.w || 1, hit: hit || null});
+    const j = judgePillar(p, A, P, sents);
+    return Object.assign({}, p, {w: p.w || 1, level: j.level, hit: j.hit});
   });
-  const tw = pil.reduce((a, p) => a + p.w, 0), hw = pil.reduce((a, p) => a + (p.hit ? p.w : 0), 0);
+  const tw = pil.reduce((a, p) => a + p.w, 0), hw = pil.reduce((a, p) => a + p.w * [0, .5, 1][p.level], 0);
   const cov = tw ? hw / tw : 0;
   const arts = (sk.articles || []).map(a => ({label: a.label, hit: a.any.some(k => A.indexOf(nz(k)) >= 0)}));
   const ac = arts.length ? arts.filter(a => a.hit).length / arts.length : null;
@@ -590,12 +654,29 @@ function autoEval(ans, sk, form){
   let b = score >= .7 ? 0 : score >= .5 ? 1 : score >= .3 ? 2 : 3;
   const why = [];
   const core = pil.find(p => p.core);
-  if(core && !core.hit && b < 2){ b = 2; why.push(`枠組みの論点「${core.label}」の語が見当たらない。骨格を外すと評価は大きく下がる`); }
+  if(core && core.level === 0 && b < 2){ b = 2; why.push(`枠組みの論点「${core.label}」の語が見当たらない。骨格を外すと評価は大きく下がる`); }
+  else if(core && core.level === 1 && b < 1){ b = 1; why.push(`枠組みの論点「${core.label}」は問題文にある語でしか触れていない。規範・判例・要件の言葉で論じたか確認`); }
+  // 論点の語は出ているのに、事実を評価する文がほとんどない（論点の羅列）
+  const hits = pil.filter(p => p.level === 2).length;
+  const evalSents = sents.filter(s => (RE_EVAL.test(s) || RE_APPLY.test(s)) && !copiedSentence(s, P)).length;
+  if(hits >= 3 && evalSents < Math.ceil(hits / 2) && b < 1){ b = 1; why.push(`論点の語は${hits}本分あるが、事実を評価する文（本件では〜といえる、等）が${evalSents}文しかない。論点を挙げるだけでなく当てはめる`); }
+  // 設問ごとの柱（「設問2：…」）がそろって×なら、その設問は書けていない
+  const groups = {};
+  pil.forEach(p => { const m = nz(p.label).match(/^(?:\(補\))?設問([0-9]+)/); if(m) (groups[m[1]] = groups[m[1]] || []).push(p); });
+  const secs = sectionsOf(ans, Object.keys(groups));
+  const empty = Object.keys(groups).length >= 2 ? Object.keys(groups).filter(k => {
+    if(!secs) return groups[k].every(p => p.level === 0);
+    const t = nz(secs[k] || ""), ss = t.split("。").filter(x => x.length >= 2);
+    return groups[k].every(p => judgePillar(p, t, P, ss).level === 0);
+  }) : [];
+  if(empty.length && b < 2){ b = 2; why.push(`設問${empty.join("・設問")}の論点に一つも触れていない。設問が丸ごと空だとF圏もありうる`); }
+  const weak = pil.filter(p => p.level === 1);
+  if(weak.length) why.push(`△の論点が${weak.length}本ある。問題文にある語を出しただけで、規範や評価の言葉が見当たらないので半分に数えている`);
   if(form.finished === "途中" && b < 1){ b = 1; why.push("途中答案なのでA圏にはしない"); }
   if(form.chars < 1000 && b < 3){ b++; why.push(`分量が${form.chars}字と少ない（A答案の最短例は約1,350字）`); }
   if(form.copy !== null && form.copy > .25 && b < 3){ b++; why.push(`問題文の書き写しが約${Math.round(form.copy * 100)}%ある`); }
   if(form.arts === 0 && b < 3){ b++; why.push("条文番号が一つもない"); }
-  const miss = pil.filter(p => !p.hit).sort((x, y) => y.w - x.w);
+  const miss = pil.filter(p => p.level < 2).sort((x, y) => (x.level - y.level) || (y.w - x.w));
   return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source};
 }
 function renderEval(ev){
@@ -605,10 +686,10 @@ function renderEval(ev){
     <div class="bar" aria-hidden="true"><i style="width:${Math.round(ev.score * 100)}%"></i></div>
     ${ev.why.length ? `<ul class="why">${ev.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
     <div class="tablewrap" style="margin-top:8px"><table class="pil"><thead><tr><th></th><th>論点（重み）</th><th>答案に出てきた語</th></tr></thead><tbody>
-      ${ev.pil.map(p => `<tr class="${p.hit ? "hit" : "miss"}"><td class="m">${p.hit ? "◯" : "×"}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.hit ? "" : `<span class="kw">探した語：${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td></tr>`).join("")}
+      ${ev.pil.map(p => `<tr class="${["miss", "weak", "hit"][p.level]}"><td class="m">${["×", "△", "◯"][p.level]}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.level === 2 ? "" : `<span class="kw">${p.level === 1 ? "問題文にもある語だけ。次の語や評価の言葉で論じると◯：" : "探した語："}${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td></tr>`).join("")}
     </tbody></table></div>
     ${ev.arts.length ? `<p class="hint">出題趣旨の条文：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
-    <p class="hint">判定のもと：${src}。語句が答案にあるかだけを見ていて、論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。点は目安で、実際の採点とは異なる。</p>
+    <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。点は目安で、実際の採点とは異なる。</p>
     ${CUR && CUR.item && CUR.item.shushi ? `<details class="sh"><summary>出題趣旨を読む（法務省）</summary><div>${esc(CUR.item.shushi)}</div></details>` : ""}
   </div>`;
 }
@@ -784,9 +865,9 @@ function runChecks(){
   let ev = null;
   const key = $("qkey").value;
   const sk = (CUR && CUR.key === key && CUR.item.skel) ? CUR.item.skel : memoSkel($("skeleton").value.replace(/【出題趣旨（法務省）】[\s\S]*$/, ""));
-  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length});
+  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob});
   $("auto").innerHTML = (ev ? renderEval(ev) : `<p class="hint" style="margin-top:0">評価の目安を出すには、上の「過去問を読み込む」を使うか、骨格メモに論点を1行ずつ書く。</p>`) + html;
-  const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
+  const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label + (p.level === 1 ? "（問題文の語だけで触れた）" : "")) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
   store.set("ytb-lastauto", summary);
   return summary;
 }
@@ -821,7 +902,7 @@ function userMessage(){
     `起案直後の自己評価：${$("selfnote").value || "未入力"}`,
     `自己チェック（8項目）：${selfTxt}`,
     "",
-    `自動評価（キーワード判定）：${auto.autoBand ? auto.autoBand + "（" + auto.autoScore + "点）。触れていない論点：" + (auto.missed.join("、") || "なし") : "なし"}`,
+    `自動評価（キーワード判定）：${auto.autoBand ? auto.autoBand + "（" + auto.autoScore + "点）。触れていない・弱い論点：" + (auto.missed.join("、") || "なし") : "なし"}`,
     "",
     "【自動チェックの結果（機械判定。参考）】",
     ...(auto.flags || []).map(f => "- " + f),
