@@ -633,7 +633,7 @@ function sectionsOf(ans, want){
     });
     return found ? out : null;
   };
-  const byQ = split(/^[〔【\[(（]?\s*(?:第\s*[0-9]+\s*)?設問\s*([0-9]+)/);
+  const byQ = split(/^[〔【\[(]?\s*(?:第\s*[0-9]+\s*)?設問\s*\(?\s*([0-9]+)\s*[)〕】\]]?(?=\s|$|\(|[.．、:：])/);
   if(byQ) return byQ;
   const byDai = split(/^第\s*([0-9]+)(?:\s|$|[.．、])/);
   if(byDai && want && Object.keys(byDai).sort().join() === [...want].sort().join()) return byDai;
@@ -642,9 +642,16 @@ function sectionsOf(ans, want){
 function autoEval(ans, sk, form){
   const A = nz(ans), P = nz(form.prob || "");
   const sents = A.split(/[。\n]/).filter(s => s.length >= 2);
+  // 「設問2：…」の柱は、答案を設問の見出しで区切れるときはその設問の部分だけで判定する
+  const qOf = p => { const m = nz(p.label).match(/^(?:\(補\))?設問([0-9]+)/); return m ? m[1] : null; };
+  const qs = [...new Set(sk.pillars.map(qOf).filter(Boolean))];
+  const secs = qs.length >= 2 ? sectionsOf(ans, qs) : null;
   const pil = sk.pillars.map(p => {
-    const j = judgePillar(p, A, P, sents);
-    return Object.assign({}, p, {w: p.w || 1, level: j.level, hit: j.hit});
+    const q = qOf(p);
+    let j;
+    if(secs && q){ const t = nz(secs[q] || ""); j = judgePillar(p, t, P, t.split("。").filter(x => x.length >= 2)); }
+    else j = judgePillar(p, A, P, sents);
+    return Object.assign({}, p, {w: p.w || 1, level: j.level, hit: j.hit, q});
   });
   const tw = pil.reduce((a, p) => a + p.w, 0), hw = pil.reduce((a, p) => a + p.w * [0, .5, 1][p.level], 0);
   const cov = tw ? hw / tw : 0;
@@ -661,14 +668,7 @@ function autoEval(ans, sk, form){
   const evalSents = sents.filter(s => (RE_EVAL.test(s) || RE_APPLY.test(s)) && !copiedSentence(s, P)).length;
   if(hits >= 3 && evalSents < Math.ceil(hits / 2) && b < 1){ b = 1; why.push(`論点の語は${hits}本分あるが、事実を評価する文（本件では〜といえる、等）が${evalSents}文しかない。論点を挙げるだけでなく当てはめる`); }
   // 設問ごとの柱（「設問2：…」）がそろって×なら、その設問は書けていない
-  const groups = {};
-  pil.forEach(p => { const m = nz(p.label).match(/^(?:\(補\))?設問([0-9]+)/); if(m) (groups[m[1]] = groups[m[1]] || []).push(p); });
-  const secs = sectionsOf(ans, Object.keys(groups));
-  const empty = Object.keys(groups).length >= 2 ? Object.keys(groups).filter(k => {
-    if(!secs) return groups[k].every(p => p.level === 0);
-    const t = nz(secs[k] || ""), ss = t.split("。").filter(x => x.length >= 2);
-    return groups[k].every(p => judgePillar(p, t, P, ss).level === 0);
-  }) : [];
+  const empty = qs.length >= 2 ? qs.filter(q => pil.filter(p => p.q === q).every(p => p.level === 0)) : [];
   if(empty.length && b < 2){ b = 2; why.push(`設問${empty.join("・設問")}の論点に一つも触れていない。設問が丸ごと空だとF圏もありうる`); }
   const weak = pil.filter(p => p.level === 1);
   if(weak.length) why.push(`△の論点が${weak.length}本ある。問題文にある語を出しただけで、規範や評価の言葉が見当たらないので半分に数えている`);
