@@ -245,11 +245,11 @@ table.pil .bonus{font-size:11px;color:var(--muted);border:1px solid var(--line);
   <section class="panel" id="p-pass" role="tabpanel" aria-labelledby="tab-pass" hidden>
     <div class="card" style="max-width:900px">
       <h2>合格答案ライブラリ</h2>
-      <p class="hint" style="margin-top:0">過去問ごとに、合格者の再現答案を評価つきで登録する。登録した問題では、自動評価が「合格答案の半数以上が触れている論点」を基準にし、AI添削も合格答案と比べて指摘する。再現答案集などから写した答案は自分の学習用にとどめ、公開しない。</p>
+      <p class="hint" style="margin-top:0">過去問ごとに、合格者の再現答案を評価つきで登録する。登録した問題では、自動評価が「合格答案の半数以上が触れている論点」を基準にし、AI添削も合格答案と比べて指摘する。予備校の解説レジュメなどは「解説・骨格」として登録すると、AI添削が骨格（論点・要件・使う事実）の目安として参照する（自動評価の基準には入れない）。再現答案集などから写した答案は自分の学習用にとどめ、公開しない。</p>
       <p class="status" id="passWhere"></p>
       <div class="load">
         <p class="t" id="passCur">先に「添削」タブで過去問を読み込むと、その問題に登録できる。</p>
-        <label for="passRank">評価<select id="passRank"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="合格">合格者（評価不明）</option><option value="D">D</option><option value="E">E</option><option value="F">F</option></select></label>
+        <label for="passRank">評価<select id="passRank"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="合格">合格者（評価不明）</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="骨格">解説・骨格（答案ではない）</option></select></label>
         <label for="passSrc" style="grid-column:span 2">出典<input id="passSrc" placeholder="例：自分の再現答案／〇〇の再現答案"></label>
       </div>
       <label for="passText">答案の本文<textarea id="passText" placeholder="再現答案をそのまま貼る"></textarea></label>
@@ -990,6 +990,7 @@ function userMessage(){
     "【問題文】",
     $("problem").value.trim() || "（未入力）",
     "",
+    ...($("qkey").value ? PASS.forKey($("qkey").value).filter(x => x.rank === "骨格").slice(0, 2).flatMap(x => ["", `【解説・骨格（${x.src || "解説レジュメ"}）。答案ではない。論点・要件・使う事実の目安にすること】`, clip(x.text, 8000)]) : []),
     ...($("qkey").value ? PASS.forKey($("qkey").value).filter(x => PASS_REF.includes(x.rank)).slice(0, 2).flatMap((x, i) => ["", `【合格答案${i + 1}（評価：${x.rank}${x.src ? "・出典：" + x.src : ""}）。水準の目安として比べること】`, clip(x.text, 7000)]) : []),
     "",
     "【答案】",
@@ -1058,7 +1059,7 @@ function renderPass(){
   $("passWhere").textContent = PASS.where();
   $("passCur").textContent = k ? `登録先の問題：${passLabel(k)}（「添削」タブで読み込んでいる問題）` : "先に「添削」タブで過去問を読み込むと、その問題に登録できる。";
   $("passAdd").disabled = !k;
-  const row = x => `<li><div><b>${esc(passLabel(x.key))}　評価：${esc(x.rank)}</b><div class="meta">${esc(x.src || "出典なし")}・${charCount(x.text).toLocaleString()}字・${esc(x.date || "")}</div></div>
+  const row = x => `<li><div><b>${esc(passLabel(x.key))}　${x.rank === "骨格" ? "解説・骨格" : "評価：" + esc(x.rank)}</b><div class="meta">${esc(x.src || "出典なし")}・${charCount(x.text).toLocaleString()}字・${esc(x.date || "")}</div></div>
     <div class="btns"><button class="ghost" data-pdel="${esc(x.id)}">削除</button></div></li>`;
   const cur = k ? PASS.forKey(k) : [];
   $("passList").innerHTML = cur.length ? cur.map(row).join("") : '<li class="empty" style="display:block">この問題の登録はまだない。</li>';
@@ -1071,7 +1072,7 @@ $("passAdd").addEventListener("click", async () => {
   if(charCount(t) < 200){ st.className = "status err"; st.textContent = "答案の本文が短すぎる（200字以上を貼る）。"; return; }
   const x = {kind: "pass", id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), key: k, rank: $("passRank").value, src: $("passSrc").value.trim(), text: t, date: new Date().toLocaleDateString("ja-JP")};
   try{ await PASS.add(x); }catch(e){ st.className = "status err"; st.textContent = "保存できなかった（" + ((e && (e.code || e.message)) || "エラー") + "）。"; return; }
-  $("passText").value = ""; st.className = "status"; st.textContent = `${passLabel(k)} に評価${x.rank}の答案を登録した。`;
+  $("passText").value = ""; st.className = "status"; st.textContent = x.rank === "骨格" ? `${passLabel(k)} に解説・骨格を登録した。` : `${passLabel(k)} に評価${x.rank}の答案を登録した。`;
   renderPass(); if($("answer").value.trim()) runChecks();
 });
 document.addEventListener("click", async ev => {
@@ -1152,7 +1153,8 @@ function gradePrompt(){
   const key = $("qkey").value, it = CUR && CUR.key === key ? CUR.item : null;
   const passing = key ? PASS.forKey(key) : [];
   const good = passing.filter(x => PASS_REF.includes(x.rank)).slice(0, 2);
-  const low = passing.filter(x => !PASS_REF.includes(x.rank)).slice(0, 1);
+  const low = passing.filter(x => !PASS_REF.includes(x.rank) && x.rank !== "骨格").slice(0, 1);
+  const skel = passing.filter(x => x.rank === "骨格").slice(0, 2);
   const pillars = it && it.skel ? it.skel.pillars.map((p, i) => `${i + 1}. ${p.label}${p.core ? "〔枠組み〕" : ""}（重み${p.w || 1}）${p.note ? "：" + p.note : ""}`).join("\n") : "（なし。出題趣旨・骨格メモから推定すること）";
   return [
     "あなたは司法試験予備試験の論文式試験の採点経験が豊富な指導者です。下の答案を、合格答案と比べて採点・添削してください。",
@@ -1161,7 +1163,7 @@ function gradePrompt(){
     "- 予備試験は相対評価。Aは完璧な答案ではなく「上位約300人」の答案。合格答案が登録されていれば、それを水準の目安にする。合格答案が書いていない論点の欠落で大きく減点しない。",
     "- 最重視するのは骨格（中心の条文・判例の枠組みを選べているか）。次に、要件ごとの規範と当てはめの対応、事実の評価。",
     "- 当てはめを細かく見る：問題文の事実のうち要件の判断に効く事実を拾ったか、事実に評価（〜だから〜といえる）を加えたか、反対方向の事実にも触れたか、規範と当てはめが対応しているか。事実を写しただけの箇所は当てはめとして評価しない。",
-    "- issues は下の「論点表」の論点ごとに1件（論点表がなければ自分で骨格を推定して論点ごとに）。facts_used は答案が使えている事実、facts_missed は使うべきなのに使っていない事実を、問題文の言葉で短く挙げる（数字は数字ごと）。",
+    "- issues は下の「論点表」の論点ごとに1件（論点表がなければ自分で骨格を推定して論点ごとに）。「解説・骨格」があれば、論点の立て方・要件・使うべき事実と推認の筋道はそれを優先して照らす。facts_used は答案が使えている事実、facts_missed は使うべきなのに使っていない事実を、問題文の言葉で短く挙げる（数字は数字ごと）。",
     "- 甘く採点しない。受験生に同調しない。ただし細部の誤りや小論点の落としだけで大きく下げない。",
     "- 答案の場所は段落番号（P3 など）で示す。引用は1か所40字以内。答案全体を再掲しない。",
     "- 条文番号・判例は確実なものだけを挙げる。自信がないものは「要確認」と書く。",
@@ -1187,6 +1189,7 @@ function gradePrompt(){
     "## 問題文",
     clip($("problem").value, 12000) || "（未入力）",
     "",
+    ...skel.flatMap(x => [`## 解説・骨格（${x.src || "解説レジュメ"}。答案ではない。論点・要件・使う事実と推認の筋道の目安にする）`, clip(x.text, 8000), ""]),
     ...good.flatMap((x, i) => [`## 合格答案${i + 1}（評価：${x.rank}${x.src ? "・出典：" + x.src : ""}）`, clip(x.text, 7000), ""]),
     ...low.flatMap(x => [`## 参考：低評価の答案（評価：${x.rank}）`, clip(x.text, 4000), ""]),
     good.length ? "" : "（この問題の合格答案は登録されていない）\n",
