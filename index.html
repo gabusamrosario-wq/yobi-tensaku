@@ -534,7 +534,13 @@ let DATA_INDEX = null, CUR = null;   // CUR = {key, item, rec}
 const yearCache = {};
 function subjName(sub){ if(SUBJ_MAP[sub]) return SUBJ_MAP[sub]; if(SUBJECTS.indexOf(sub) >= 0) return sub; return /^(倒産法|租税法|経済法|知的財産法|労働法|環境法|国際公法|国際私法)$/.test(sub) ? "選択科目" : sub; }
 function ensureSubject(name){ if(![...$("subject").options].some(o => o.value === name)){ const o = document.createElement("option"); o.textContent = name; $("subject").appendChild(o); } $("subject").value = name; }
+// デスクトップ版（tools/build_desktop.py で作る1ファイル版）はデータを <script type="application/json" id="embed:ファイル名"> に入れて持つ
+function embedded(path){
+  const el = document.getElementById("embed:" + path);
+  return el ? JSON.parse(el.textContent) : undefined;
+}
 async function getJSON(path){
+  const e = embedded(path); if(e !== undefined) return e;
   const r = await fetch(path, {cache: "no-cache"});
   if(!r.ok) throw new Error(r.status + " " + path);
   return r.json();
@@ -562,7 +568,7 @@ async function initLoader(){
   }catch(e){
     $("loader").querySelectorAll("select,button").forEach(el => el.disabled = true);
     $("qStatus").className = "status err";
-    $("qStatus").textContent = location.protocol === "file:" ? "パソコンのファイルを直接開いているので、過去問データを読めない。GitHub Pagesの URL で開くと使える。" : "過去問データ（exams-index.json など）が見つからない。index.html と同じ場所に、zip に入っている .json ファイル4つを上げたか確認して。";
+    $("qStatus").textContent = location.protocol === "file:" ? "パソコンのファイルを直接開いているので、過去問データを読めない。GitHub Pagesの URL で開くか、データを中に入れたデスクトップ版（tools/build_desktop.py で作る1ファイル）を使う。" : "過去問データ（exams-index.json など）が見つからない。index.html と同じ場所に、zip に入っている .json ファイル4つを上げたか確認して。";
   }
 }
 $("qExam").addEventListener("change", fillYears);
@@ -1105,6 +1111,10 @@ $("copyPrompt").addEventListener("click", async () => {
 const PASS_REF = ["A", "B", "合格"];   // 基準にする評価
 const PASS = {
   items: store.get("ytb-pass", []), db: null, uid: null,
+  bundled: null,   // デスクトップ版に同梱した答案（保存はしない・削除できない）
+  bundle(){ if(!this.bundled){ try{ this.bundled = embedded("pass-library.json") || []; }catch(e){ this.bundled = []; } } return this.bundled; },
+  all(){ const ids = new Set(this.items.map(x => x.id)); return this.items.concat(this.bundle().filter(x => !ids.has(x.id))); },
+  isBundled(id){ return !this.items.some(x => x.id === id) && this.bundle().some(x => x.id === id); },
   col(){ return this.db.collection("data/users/" + this.uid); },
   async init(){
     try{
@@ -1125,7 +1135,7 @@ const PASS = {
     renderPass(); updateAiMode();
   },
   where(){ return this.db ? "保存先：claude.ai のあなた専用の保存領域（ほかの人には見えない）。" : "保存先：このブラウザ。別の端末に移すときは書き出して読み込む。"; },
-  forKey(k){ return this.items.filter(x => x.key === k); },
+  forKey(k){ return this.all().filter(x => x.key === k); },
   refTexts(k){ return this.forKey(k).filter(x => PASS_REF.includes(x.rank)).map(x => x.text); },
   async add(x, save = true){
     if(this.db) await this.col().doc("pass_" + x.id).set(x);
@@ -1158,10 +1168,10 @@ function renderPass(){
   $("passCur").textContent = k ? `登録先の問題：${passLabel(k)}（「添削」タブで読み込んでいる問題）` : "先に「添削」タブで過去問を読み込むと、その問題に登録できる。";
   $("passAdd").disabled = !k;
   const row = x => `<li><div><b>${esc(passLabel(x.key))}　${x.rank === "骨格" ? "解説・骨格" : "評価：" + esc(x.rank)}</b><div class="meta">${esc(x.src || "出典なし")}・${charCount(x.text).toLocaleString()}字・${esc(x.date || "")}</div></div>
-    <div class="btns"><button class="ghost" data-pdel="${esc(x.id)}">削除</button></div></li>`;
+    <div class="btns">${PASS.isBundled(x.id) ? '<span class="meta">同梱</span>' : `<button class="ghost" data-pdel="${esc(x.id)}">削除</button>`}</div></li>`;
   const cur = k ? PASS.forKey(k) : [];
   $("passList").innerHTML = cur.length ? cur.map(row).join("") : '<li class="empty" style="display:block">この問題の登録はまだない。</li>';
-  const all = PASS.items.slice().sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  const all = PASS.all().sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
   $("passAll").innerHTML = all.length ? all.map(row).join("") : '<li class="empty" style="display:block">まだ登録はない。</li>';
 }
 $("passAdd").addEventListener("click", async () => {
@@ -1180,7 +1190,7 @@ document.addEventListener("click", async ev => {
   renderPass(); if($("answer").value.trim()) runChecks();
 });
 $("passExport").addEventListener("click", () => {
-  saveFile("yobi-tensaku-goukaku.json", JSON.stringify(PASS.items, null, 2), m => { $("passStatus").className = "status err"; $("passStatus").textContent = m; });
+  saveFile("yobi-tensaku-goukaku.json", JSON.stringify(PASS.all(), null, 2), m => { $("passStatus").className = "status err"; $("passStatus").textContent = m; });
 });
 $("passImport").addEventListener("change", ev => {
   const f = ev.target.files[0]; if(!f) return;
@@ -1197,7 +1207,7 @@ $("passImport").addEventListener("change", ev => {
         return;
       }
       if(!Array.isArray(arr)) throw 0;
-      const ids = new Set(PASS.items.map(x => x.id)); let n = 0;
+      const ids = new Set(PASS.all().map(x => x.id)); let n = 0;
       const todo = arr.filter(x => x && x.id && x.key && x.text && !ids.has(String(x.id)));
       st.className = "status";
       try{
