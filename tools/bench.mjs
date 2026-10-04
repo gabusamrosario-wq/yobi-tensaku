@@ -83,16 +83,18 @@ let fail = 0;
 console.log("\n答案サンプル：");
 for (const f of fx) {
   const ans = fs.readFileSync(path.join(root, "tools/fixtures", f.file), "utf8");
-  const e = await page.evaluate(async ({f, ans}) => {
+  // pass：合格答案として比べる答案（tools/fixtures のファイル名）
+  const pass = (f.pass || []).map(n => fs.readFileSync(path.join(root, "tools/fixtures", n), "utf8"));
+  const e = await page.evaluate(async ({f, ans, pass}) => {
     const data = await (await fetch(`${f.exam}-data.json`)).json();
     const it = data[f.year].items.find(x => x.id === f.id);
     const arts = new Set(nfkc(ans).match(/[0-9]+条(?:の[0-9]+)?/g) || []).size;
-    const r = autoEval(ans, it.skel, {finished: f.finished, chars: charCount(ans), copy: copyRatio(ans, it.problem), arts, prob: it.problem});
-    return {band: r.band, score: r.score, cov: r.cov, why: r.why, pil: r.pil.map(p => ["×", "△", "◯"][p.level] + p.label)};
-  }, {f, ans});
+    const r = autoEval(ans, it.skel, {finished: f.finished, chars: charCount(ans), copy: copyRatio(ans, it.problem), arts, prob: it.problem, pass});
+    return {band: r.band, score: r.score, cov: r.cov, why: r.why, pil: r.pil.map(p => ["×", "△", "◯"][p.level] + p.label + (p.passN ? `（合格答案 ${p.passHit}/${p.passN}${p.bonus ? "・加点" : ""}）` : ""))};
+  }, {f, ans, pass});
   const ok = f.expect.includes(e.band);
   if (!ok) fail++;
-  console.log(`  ${ok ? "OK  " : "NG  "}${f.file}：${e.band}（総合${Math.round(e.score * 100)}点・論点カバー${Math.round(e.cov * 100)}%）期待 ${f.expect.join("か")}　${f.memo}`);
+  console.log(`  ${ok ? "OK  " : "NG  "}${f.file}：${e.band}（総合${Math.round(e.score * 100)}点・論点カバー${Math.round(e.cov * 100)}%）期待 ${f.expect.join("か")}　${f.memo}${pass.length ? `（合格答案${pass.length}通と比較）` : ""}`);
   if (!ok || detail) { e.pil.forEach(p => console.log("        " + p)); e.why.forEach(w => console.log("        ・" + w)); }
 }
 if (errors.length) console.log("page errors:", errors);

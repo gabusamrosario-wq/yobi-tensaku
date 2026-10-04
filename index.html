@@ -137,6 +137,26 @@ details.sh{margin-top:10px;font-size:13px}
 details.sh summary{cursor:pointer;color:var(--accent)}
 details.sh div{white-space:pre-wrap;margin-top:6px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;max-height:360px;overflow:auto}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.chip{display:inline-block;border-radius:4px;padding:0 6px;margin:2px 4px 2px 0;font-size:12px;line-height:1.7}
+.chip.ok{background:var(--ok-soft);color:var(--ink)} .chip.ng{background:var(--shu-soft);color:var(--ink)}
+.ref{font-size:13px;margin:8px 0 0;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+table.pil .bonus{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 4px;margin-left:4px;white-space:nowrap}
+.result .grade table.pil{display:table;width:100%}
+.result .grade table.pil td,.result .grade table.pil th{border:0;border-bottom:1px solid var(--line);padding:6px}
+.grade .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+.grade .band{font-family:var(--serif);font-weight:800;font-size:28px;line-height:1.2}
+.grade h3{font-size:15px;margin:18px 0 6px}
+.grade .g{font-family:var(--mono);text-align:center;white-space:nowrap}
+.grade .g.o{color:var(--ok)} .grade .g.t{color:var(--warn)} .grade .g.x{color:var(--shu)}
+.grade details{margin:4px 0 0;font-size:13px}
+.grade details summary{cursor:pointer;color:var(--accent)}
+.grade .notes{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.grade .notes li{font-size:13px;padding:6px 10px;border-left:3px solid var(--line);background:var(--surface)}
+.grade .notes li.good{border-left-color:var(--ok)}
+.grade .rw{display:grid;gap:8px;grid-template-columns:1fr}
+.grade .rw div{font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);white-space:pre-wrap}
+.grade .rw .after{border-color:var(--ok)}
+.aimode{font-size:13px;margin:0 0 8px;padding:8px 10px;border-radius:6px;background:var(--accent-soft);color:var(--ink)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -146,6 +166,7 @@ details.sh div{white-space:pre-wrap;margin-top:6px;padding:10px;background:var(-
     <h1><small>予備・司法・旧司 論文</small>予備論文 添削ボード</h1>
     <nav role="tablist" aria-label="画面の切り替え">
       <button role="tab" id="tab-grade" aria-selected="true" aria-controls="p-grade">添削</button>
+      <button role="tab" id="tab-pass" aria-selected="false" aria-controls="p-pass">合格答案</button>
       <button role="tab" id="tab-rubric" aria-selected="false" aria-controls="p-rubric">合格答案の基準</button>
       <button role="tab" id="tab-hist" aria-selected="false" aria-controls="p-hist">履歴</button>
       <button role="tab" id="tab-set" aria-selected="false" aria-controls="p-set">設定</button>
@@ -205,16 +226,42 @@ details.sh div{white-space:pre-wrap;margin-top:6px;padding:10px;background:var(-
         </div>
         <div class="card">
           <h2><span class="step">5</span>AI添削（任意）</h2>
-          <p class="hint" style="margin-top:0">APIキーがなくても、「プロンプトをコピー」してClaudeに貼れば同じ形式で添削される。</p>
+          <p class="aimode" id="aiMode">AI添削の使い方を確かめている…</p>
           <div class="btns" style="margin-top:8px">
+            <button class="primary" id="aiGrade">AIで添削する（当てはめまで）</button>
+            <button class="ghost" id="aiStop" hidden>止める</button>
             <button class="ghost" id="copyPrompt">プロンプトをコピー</button>
-            <button class="primary" id="callApi">APIで添削する</button>
             <button class="ghost" id="saveHist">履歴に保存</button>
           </div>
           <p class="status" id="aiStatus" role="status" aria-live="polite"></p>
           <div class="result" id="aiResult"></div>
           <label for="aiPaste" style="margin-top:10px">Claudeで添削した結果を貼って保存する場合<textarea id="aiPaste" style="min-height:90px" placeholder="Claudeの返答を貼る（任意）"></textarea></label>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 合格答案ライブラリ -->
+  <section class="panel" id="p-pass" role="tabpanel" aria-labelledby="tab-pass" hidden>
+    <div class="card" style="max-width:900px">
+      <h2>合格答案ライブラリ</h2>
+      <p class="hint" style="margin-top:0">過去問ごとに、合格者の再現答案を評価つきで登録する。登録した問題では、自動評価が「合格答案の半数以上が触れている論点」を基準にし、AI添削も合格答案と比べて指摘する。再現答案集などから写した答案は自分の学習用にとどめ、公開しない。</p>
+      <p class="status" id="passWhere"></p>
+      <div class="load">
+        <p class="t" id="passCur">先に「添削」タブで過去問を読み込むと、その問題に登録できる。</p>
+        <label for="passRank">評価<select id="passRank"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="合格">合格者（評価不明）</option><option value="D">D</option><option value="E">E</option><option value="F">F</option></select></label>
+        <label for="passSrc" style="grid-column:span 2">出典<input id="passSrc" placeholder="例：自分の再現答案／〇〇の再現答案"></label>
+      </div>
+      <label for="passText">答案の本文<textarea id="passText" placeholder="再現答案をそのまま貼る"></textarea></label>
+      <div class="btns" style="margin-top:10px"><button class="primary" id="passAdd">この問題の答案として登録</button></div>
+      <p class="status" id="passStatus" role="status" aria-live="polite"></p>
+      <h3 style="font-size:15px;margin:18px 0 8px">この問題の登録答案</h3>
+      <ul class="hist" id="passList"></ul>
+      <h3 style="font-size:15px;margin:18px 0 8px">すべての登録答案</h3>
+      <ul class="hist" id="passAll"></ul>
+      <div class="btns" style="margin-top:12px">
+        <button class="ghost" id="passExport">書き出す（JSON）</button>
+        <label class="ghost" for="passImport" style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 16px;cursor:pointer;color:var(--ink);font-size:14px">読み込む<input type="file" id="passImport" accept="application/json" class="sr"></label>
       </div>
     </div>
   </section>
@@ -241,12 +288,12 @@ details.sh div{white-space:pre-wrap;margin-top:6px;padding:10px;background:var(-
   <section class="panel" id="p-set" role="tabpanel" aria-labelledby="tab-set" hidden>
     <div class="card" style="max-width:720px">
       <h2>AI添削の設定（任意）</h2>
-      <p class="hint" style="margin-top:0">Anthropic のAPIキー（console.anthropic.com で発行。使った分だけ料金がかかる）。キーはこのブラウザにだけ保存され、ページのコードやGitHubには入らない。共用PCでは保存しないこと。</p>
+      <p class="hint" style="margin-top:0">claude.ai で開いている場合は設定不要（あなたのClaudeの利用枠で添削する）。GitHub Pages など claude.ai の外で開いてAPIで添削するときだけ、Anthropic のAPIキー（console.anthropic.com で発行。使った分だけ料金がかかる）を入れる。キーはこのブラウザにだけ保存され、ページのコードやGitHubには入らない。共用PCでは保存しないこと。</p>
       <div class="row" style="margin-top:10px">
         <label for="apiKey" style="grid-column:span 2">APIキー<input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
         <label for="model">モデル<select id="model">
-          <option value="claude-sonnet-5">claude-sonnet-5（標準）</option>
-          <option value="claude-opus-5">claude-opus-5（高精度・高め）</option>
+          <option value="claude-opus-5-5">claude-opus-5-5（標準・高精度）</option>
+          <option value="claude-sonnet-5-5">claude-sonnet-5-5（速い・安い）</option>
           <option value="custom">その他（下に入力）</option>
         </select></label>
       </div>
@@ -417,6 +464,18 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
+// ファイルを保存する。claude.ai 上ではページからの直接ダウンロードが止められるので、保存機能（downloads）を使う
+async function saveFile(name, text, onError){
+  try{
+    const dl = window.claude && typeof window.claude.use === "function" ? await window.claude.use("downloads") : null;
+    if(dl){ await dl.save({filename: name, data: new Blob([text], {type: "application/json"})}); return; }
+  }catch(e){
+    const code = e && e.code;
+    if(code === "declined") return;
+    if(!["unavailable", "not_granted", "capability_disabled", "capability_removed"].includes(code)){ onError(code === "rate_limited" ? "保存の確認画面がもう開いている。少し待ってからもう一度。" : "保存できなかった（" + (code || "エラー") + "）。"); return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type: "application/json"})); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const nfkc = s => (s || "").normalize("NFKC");
 
@@ -447,7 +506,7 @@ function md(src){
 }
 
 /* ====== タブ ====== */
-const tabs = ["grade", "rubric", "hist", "set"];
+const tabs = ["grade", "pass", "rubric", "hist", "set"];
 function showTab(name){
   tabs.forEach(t => {
     $("tab-" + t).setAttribute("aria-selected", t === name ? "true" : "false");
@@ -455,6 +514,7 @@ function showTab(name){
   });
   store.set("ytb-tab", name);
   if(name === "hist") renderHist();
+  if(name === "pass") renderPass();
 }
 tabs.forEach(t => $("tab-" + t).addEventListener("click", () => showTab(t)));
 
@@ -556,6 +616,7 @@ $("qLoad").addEventListener("click", async () => {
     st.className = "status"; st.textContent = "読み込み中…";
     await selectItem(`${exam}/${year}/${id}`, true);
     store.set("ytb-qsel", {exam, year, item: id});
+    renderPass();
     saveDraft();
     const sk = CUR.item.skel;
     st.textContent = `${CUR.rec.yearLabel} ${CUR.item.title} を読み込んだ。` + (sk ? `論点${sk.pillars.length}本で自動評価できる（${sk.source === "curated" ? "精選キーワード" : "出題趣旨から自動抽出したキーワード"}）。` : "この問題は論点キーワードがないので、分量などの形式面だけ評価する。");
@@ -654,7 +715,21 @@ function autoEval(ans, sk, form){
     return Object.assign({}, p, {w: p.w || 1, level: j.level, hit: j.hit, q});
   });
   const tw = pil.reduce((a, p) => a + p.w, 0), hw = pil.reduce((a, p) => a + p.w * [0, .5, 1][p.level], 0);
-  const cov = tw ? hw / tw : 0;
+  let cov = tw ? hw / tw : 0;
+  // 合格答案と照らす：合格答案の半数以上が◯の論点だけを基準にする（それ以外は加点要素）
+  const pass = (form.pass || []).filter(t => t && t.trim());
+  let ref = null;
+  if(pass.length){
+    const pe = pass.map(t => autoEval(t, sk, {finished: "完走", chars: charCount(t), copy: null, arts: 1, prob: form.prob}));
+    pil.forEach((p, i) => { p.passN = pe.length; p.passHit = pe.filter(e => e.pil[i].level === 2).length; p.bonus = p.passHit / p.passN < .5; });
+    const base = pil.filter(p => !p.bonus);
+    const bw = base.reduce((a, p) => a + p.w, 0);
+    const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.floor((b.length - 1) / 2)] : null; };
+    const fr = t => { const f = form.prob ? factCoverage(t, form.prob) : null; return f && f.facts.length ? f.used.length / f.facts.length : null; };
+    const pf = pass.map(fr).filter(x => x !== null);
+    ref = {n: pass.length, base: base.length, bonus: pil.length - base.length, chars: med(pass.map(charCount)), facts: pf.length ? med(pf) : null, mine: fr(ans), covAbs: cov};
+    if(bw) cov = base.reduce((a, p) => a + p.w * [0, .5, 1][p.level], 0) / bw;
+  }
   const arts = (sk.articles || []).map(a => ({label: a.label, hit: a.any.some(k => A.indexOf(nz(k)) >= 0)}));
   const ac = arts.length ? arts.filter(a => a.hit).length / arts.length : null;
   const score = ac === null ? cov : cov * 0.8 + ac * 0.2;
@@ -676,18 +751,20 @@ function autoEval(ans, sk, form){
   if(form.chars < 1000 && b < 3){ b++; why.push(`分量が${form.chars}字と少ない（A答案の最短例は約1,350字）`); }
   if(form.copy !== null && form.copy > .25 && b < 3){ b++; why.push(`問題文の書き写しが約${Math.round(form.copy * 100)}%ある`); }
   if(form.arts === 0 && b < 3){ b++; why.push("条文番号が一つもない"); }
-  const miss = pil.filter(p => p.level < 2).sort((x, y) => (x.level - y.level) || (y.w - x.w));
-  return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source};
+  const miss = pil.filter(p => p.level < 2 && !p.bonus).sort((x, y) => (x.level - y.level) || (y.w - x.w));
+  if(ref) why.unshift(`合格答案${ref.n}通の半数以上が触れている論点（${ref.base}本）を基準に評価した。${ref.bonus ? `合格答案もあまり触れていない${ref.bonus}本は加点要素として扱い、評価に入れていない。` : ""}`);
+  return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source, ref};
 }
 function renderEval(ev){
   const src = ev.source === "curated" ? "出題趣旨をもとに精選した論点キーワード" : ev.source === "auto" ? "出題趣旨から機械的に抜き出した論点キーワード（精度は低め）" : "あなたの骨格メモの語句";
   return `<div class="ev">
-    <div class="top"><span class="band ${ev.cls}">${ev.band}</span><span class="score">論点カバー ${Math.round(ev.cov * 100)}%${ev.ac !== null ? "・条文 " + Math.round(ev.ac * 100) + "%" : ""}・総合 ${Math.round(ev.score * 100)}点</span></div>
+    <div class="top"><span class="band ${ev.cls}">${ev.band}</span><span class="score">${ev.ref ? "合格答案基準の" : ""}論点カバー ${Math.round(ev.cov * 100)}%${ev.ac !== null ? "・条文 " + Math.round(ev.ac * 100) + "%" : ""}・総合 ${Math.round(ev.score * 100)}点</span></div>
     <div class="bar" aria-hidden="true"><i style="width:${Math.round(ev.score * 100)}%"></i></div>
     ${ev.why.length ? `<ul class="why">${ev.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
-    <div class="tablewrap" style="margin-top:8px"><table class="pil"><thead><tr><th></th><th>論点（重み）</th><th>答案に出てきた語</th></tr></thead><tbody>
-      ${ev.pil.map(p => `<tr class="${["miss", "weak", "hit"][p.level]}"><td class="m">${["×", "△", "◯"][p.level]}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.level === 2 ? "" : `<span class="kw">${p.level === 1 ? "問題文にもある語だけ。次の語や評価の言葉で論じると◯：" : "探した語："}${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td></tr>`).join("")}
+    <div class="tablewrap" style="margin-top:8px"><table class="pil"><thead><tr><th></th><th>論点（重み）</th><th>答案に出てきた語</th>${ev.ref ? "<th>合格答案</th>" : ""}</tr></thead><tbody>
+      ${ev.pil.map(p => `<tr class="${["miss", "weak", "hit"][p.level]}"><td class="m">${["×", "△", "◯"][p.level]}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.level === 2 ? "" : `<span class="kw">${p.level === 1 ? "問題文にもある語だけ。次の語や評価の言葉で論じると◯：" : "探した語："}${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td>${ev.ref ? `<td class="m">${p.passHit}/${p.passN}${p.bonus ? '<span class="bonus">加点</span>' : ""}</td>` : ""}</tr>`).join("")}
     </tbody></table></div>
+    ${ev.ref ? `<p class="ref">合格答案（${ev.ref.n}通）の中央値：${ev.ref.chars !== null ? ev.ref.chars.toLocaleString() + "字" : "—"}${ev.ref.facts !== null ? "・数字つき事実の拾い率" + Math.round(ev.ref.facts * 100) + "%" : ""}。あなた：${charCount($("answer").value).toLocaleString()}字${ev.ref.mine !== null ? "・" + Math.round(ev.ref.mine * 100) + "%" : ""}。出題趣旨の全論点に対するカバーは${Math.round(ev.ref.covAbs * 100)}%。</p>` : ""}
     ${ev.arts.length ? `<p class="hint">出題趣旨の条文：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
     <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。点は目安で、実際の採点とは異なる。</p>
     ${CUR && CUR.item && CUR.item.shushi ? `<details class="sh"><summary>出題趣旨を読む（法務省）</summary><div>${esc(CUR.item.shushi)}</div></details>` : ""}
@@ -865,7 +942,7 @@ function runChecks(){
   let ev = null;
   const key = $("qkey").value;
   const sk = (CUR && CUR.key === key && CUR.item.skel) ? CUR.item.skel : memoSkel($("skeleton").value.replace(/【出題趣旨（法務省）】[\s\S]*$/, ""));
-  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob});
+  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob, pass: CUR && CUR.key === key && sk === CUR.item.skel ? PASS.refTexts(key) : []});
   $("auto").innerHTML = (ev ? renderEval(ev) : `<p class="hint" style="margin-top:0">評価の目安を出すには、上の「過去問を読み込む」を使うか、骨格メモに論点を1行ずつ書く。</p>`) + html;
   const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label + (p.level === 1 ? "（問題文の語だけで触れた）" : "")) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
   store.set("ytb-lastauto", summary);
@@ -888,7 +965,7 @@ $("clear").addEventListener("click", () => {
   CUR = null; showSource();
   document.querySelectorAll('#sc input').forEach(r => r.checked = false);
   $("auto").innerHTML = '<p class="empty">答案を貼って「自動チェック」を押すと、ここに結果が出る。</p>';
-  $("aiResult").innerHTML = ""; $("aiStatus").textContent = "";
+  $("aiResult").innerHTML = ""; $("aiStatus").textContent = ""; store.del("ytb-lastai"); store.del("ytb-lastgrade");
   verdict(); saveDraft();
 });
 
@@ -913,6 +990,8 @@ function userMessage(){
     "【問題文】",
     $("problem").value.trim() || "（未入力）",
     "",
+    ...($("qkey").value ? PASS.forKey($("qkey").value).filter(x => PASS_REF.includes(x.rank)).slice(0, 2).flatMap((x, i) => ["", `【合格答案${i + 1}（評価：${x.rank}${x.src ? "・出典：" + x.src : ""}）。水準の目安として比べること】`, clip(x.text, 7000)]) : []),
+    "",
     "【答案】",
     $("answer").value.trim()
   ].join("\n");
@@ -932,38 +1011,317 @@ $("copyPrompt").addEventListener("click", async () => {
   $("aiStatus").textContent = ok ? `コピーした（${text.length.toLocaleString()}字）。Claudeの新しいチャットに貼って送れば添削される。` : "コピーできなかった。ブラウザの設定を確認してください。";
 });
 
-/* ====== API ====== */
-function modelName(){ const m = store.get("ytb-model", "claude-sonnet-5"); return m === "custom" ? (store.get("ytb-modelCustom", "") || "claude-sonnet-5") : m; }
-$("callApi").addEventListener("click", async () => {
+/* ====== 合格答案ライブラリ ======
+   claude.ai で開いたときは本人専用の保存領域（db の data/users/<id>/）に、
+   それ以外はこのブラウザ（localStorage）に保存する。どちらでも手元の写しを localStorage に置く。 */
+const PASS_REF = ["A", "B", "合格"];   // 基準にする評価
+const PASS = {
+  items: store.get("ytb-pass", []), db: null, uid: null,
+  col(){ return this.db.collection("data/users/" + this.uid); },
+  async init(){
+    try{
+      if(window.claude && typeof window.claude.use === "function"){
+        const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+        const uid = db && user ? await user.id() : null;
+        if(uid){
+          this.db = db; this.uid = uid;
+          const snap = await this.col().where("kind", "==", "pass").get();
+          const remote = snap.docs.map(d => d.data()).filter(x => x && x.id);
+          const ids = new Set(remote.map(x => x.id));
+          for(const x of this.items) if(!ids.has(x.id)){ await this.col().doc("pass_" + x.id).set(x); remote.push(x); }   // ブラウザにだけあった分を移す
+          this.items = remote;
+          store.set("ytb-pass", this.items);
+        }
+      }
+    }catch(e){ this.db = null; }
+    renderPass(); updateAiMode();
+  },
+  where(){ return this.db ? "保存先：claude.ai のあなた専用の保存領域（ほかの人には見えない）。" : "保存先：このブラウザ。別の端末に移すときは書き出して読み込む。"; },
+  forKey(k){ return this.items.filter(x => x.key === k); },
+  refTexts(k){ return this.forKey(k).filter(x => PASS_REF.includes(x.rank)).map(x => x.text); },
+  async add(x){
+    if(this.db) await this.col().doc("pass_" + x.id).set(x);
+    this.items.push(x); store.set("ytb-pass", this.items);
+  },
+  async remove(id){
+    if(this.db) await this.col().doc("pass_" + id).delete();
+    this.items = this.items.filter(x => x.id !== id); store.set("ytb-pass", this.items);
+  }
+};
+function passLabel(k){
+  const [exam, year, id] = (k || "").split("/");
+  return `${EXAM_NAME[exam] || exam} ${year || ""} ${id || ""}`;
+}
+function renderPass(){
+  if(!$("passList")) return;
+  const k = $("qkey").value;
+  $("passWhere").textContent = PASS.where();
+  $("passCur").textContent = k ? `登録先の問題：${passLabel(k)}（「添削」タブで読み込んでいる問題）` : "先に「添削」タブで過去問を読み込むと、その問題に登録できる。";
+  $("passAdd").disabled = !k;
+  const row = x => `<li><div><b>${esc(passLabel(x.key))}　評価：${esc(x.rank)}</b><div class="meta">${esc(x.src || "出典なし")}・${charCount(x.text).toLocaleString()}字・${esc(x.date || "")}</div></div>
+    <div class="btns"><button class="ghost" data-pdel="${esc(x.id)}">削除</button></div></li>`;
+  const cur = k ? PASS.forKey(k) : [];
+  $("passList").innerHTML = cur.length ? cur.map(row).join("") : '<li class="empty" style="display:block">この問題の登録はまだない。</li>';
+  const all = PASS.items.slice().sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  $("passAll").innerHTML = all.length ? all.map(row).join("") : '<li class="empty" style="display:block">まだ登録はない。</li>';
+}
+$("passAdd").addEventListener("click", async () => {
+  const k = $("qkey").value, t = $("passText").value.trim(), st = $("passStatus");
+  if(!k){ st.className = "status err"; st.textContent = "先に「添削」タブで過去問を読み込んで。"; return; }
+  if(charCount(t) < 200){ st.className = "status err"; st.textContent = "答案の本文が短すぎる（200字以上を貼る）。"; return; }
+  const x = {kind: "pass", id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), key: k, rank: $("passRank").value, src: $("passSrc").value.trim(), text: t, date: new Date().toLocaleDateString("ja-JP")};
+  try{ await PASS.add(x); }catch(e){ st.className = "status err"; st.textContent = "保存できなかった（" + ((e && (e.code || e.message)) || "エラー") + "）。"; return; }
+  $("passText").value = ""; st.className = "status"; st.textContent = `${passLabel(k)} に評価${x.rank}の答案を登録した。`;
+  renderPass(); if($("answer").value.trim()) runChecks();
+});
+document.addEventListener("click", async ev => {
+  const d = ev.target.closest("[data-pdel]"); if(!d) return;
+  if(d.dataset.confirm !== "1"){ d.dataset.confirm = "1"; d.textContent = "本当に削除"; setTimeout(() => { if(d.isConnected){ d.dataset.confirm = ""; d.textContent = "削除"; } }, 3000); return; }
+  try{ await PASS.remove(d.dataset.pdel); }catch(e){ $("passStatus").className = "status err"; $("passStatus").textContent = "削除できなかった。"; return; }
+  renderPass(); if($("answer").value.trim()) runChecks();
+});
+$("passExport").addEventListener("click", () => {
+  saveFile("yobi-tensaku-goukaku.json", JSON.stringify(PASS.items, null, 2), m => { $("passStatus").className = "status err"; $("passStatus").textContent = m; });
+});
+$("passImport").addEventListener("change", ev => {
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = async () => {
+    const st = $("passStatus");
+    try{
+      const arr = JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
+      const ids = new Set(PASS.items.map(x => x.id)); let n = 0;
+      for(const x of arr) if(x && x.id && x.key && x.text && !ids.has(x.id)){ await PASS.add({kind: "pass", id: String(x.id), key: String(x.key), rank: String(x.rank || "合格"), src: String(x.src || ""), text: String(x.text), date: String(x.date || "")}); n++; }
+      st.className = "status"; st.textContent = `${n}通を読み込んだ。`; renderPass();
+    }catch(e){ st.className = "status err"; st.textContent = "読み込めなかった（このサイトで書き出したJSONか確認して）。"; }
+  };
+  r.readAsText(f); ev.target.value = "";
+});
+
+/* ====== AI添削（当てはめまで）：claude.ai では本人の利用枠、外ではAPIキー ====== */
+const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5"];
+function modelName(){ const m = store.get("ytb-model", MODELS[0]); return m === "custom" ? (store.get("ytb-modelCustom", "") || MODELS[0]) : (MODELS.includes(m) ? m : MODELS[0]); }
+// claude.ai のアーティファクトとして開いたときだけ使える（それ以外では null）
+let SAMPLE = null;
+async function initSample(){
+  try{ if(window.claude && typeof window.claude.use === "function") SAMPLE = await window.claude.use("sample"); }catch(e){ SAMPLE = null; }
+  updateAiMode();
+}
+function updateAiMode(){
+  const el = $("aiMode");
+  if(SAMPLE) el.textContent = "claude.ai で開いているので、APIキーなしで添削できる（あなたのClaudeの利用枠を使う。初回だけ許可を求められる）。";
+  else if(store.get("ytb-key", "")) el.textContent = `APIキーで添削する（${modelName()}。使った分だけAPI料金がかかる）。claude.ai 版で開けばキーは要らない。`;
+  else el.textContent = "このページは claude.ai の外で開かれている。claude.ai 版で開けばAPIキーなしで添削できる。ここで使うなら「設定」でAPIキーを入れるか、「プロンプトをコピー」してClaudeのチャットに貼る。";
+}
+
+const G3 = ["◯", "△", "×"];
+const GRADE_SCHEMA = {
+  type: "object", additionalProperties: false,
+  required: ["band", "score", "reason", "issues", "notes", "vs_passing", "strengths", "next", "rewrite"],
+  properties: {
+    band: {type: "string", enum: ["A", "B", "C", "D", "E", "F"]},
+    score: {type: "integer"},
+    reason: {type: "string"},
+    issues: {type: "array", items: {type: "object", additionalProperties: false,
+      required: ["label", "reached", "where", "rule", "rule_comment", "application", "application_comment", "facts_used", "facts_missed", "conclusion", "fix"],
+      properties: {
+        label: {type: "string"}, reached: {type: "string", enum: G3}, where: {type: "string"},
+        rule: {type: "string", enum: G3.concat("—")}, rule_comment: {type: "string"},
+        application: {type: "string", enum: G3.concat("—")}, application_comment: {type: "string"},
+        facts_used: {type: "array", items: {type: "string"}}, facts_missed: {type: "array", items: {type: "string"}},
+        conclusion: {type: "string", enum: G3.concat("—")}, fix: {type: "string"}
+      }}},
+    notes: {type: "array", items: {type: "object", additionalProperties: false, required: ["para", "quote", "kind", "comment"],
+      properties: {para: {type: "string"}, quote: {type: "string"}, kind: {type: "string", enum: ["構成", "論点抽出", "規範", "当てはめ", "論理", "根拠の欠落", "条文", "表現", "良い点"]}, comment: {type: "string"}}}},
+    vs_passing: {type: "string"},
+    strengths: {type: "array", items: {type: "string"}},
+    next: {type: "string"},
+    rewrite: {type: "object", additionalProperties: false, required: ["para", "before", "after"],
+      properties: {para: {type: "string"}, before: {type: "string"}, after: {type: "string"}}}
+  }
+};
+
+function numberedAnswer(ans){
+  let n = 0;
+  return ans.split("\n").map(l => l.trim() ? `[P${++n}] ${l.trim()}` : "").filter(Boolean).join("\n");
+}
+function clip(t, n){ t = (t || "").trim(); return t.length > n ? t.slice(0, n) + "\n…（以下省略）" : t; }
+
+function gradePrompt(){
+  const auto = runChecks() || {};
+  const key = $("qkey").value, it = CUR && CUR.key === key ? CUR.item : null;
+  const passing = key ? PASS.forKey(key) : [];
+  const good = passing.filter(x => PASS_REF.includes(x.rank)).slice(0, 2);
+  const low = passing.filter(x => !PASS_REF.includes(x.rank)).slice(0, 1);
+  const pillars = it && it.skel ? it.skel.pillars.map((p, i) => `${i + 1}. ${p.label}${p.core ? "〔枠組み〕" : ""}（重み${p.w || 1}）${p.note ? "：" + p.note : ""}`).join("\n") : "（なし。出題趣旨・骨格メモから推定すること）";
+  return [
+    "あなたは司法試験予備試験の論文式試験の採点経験が豊富な指導者です。下の答案を、合格答案と比べて採点・添削してください。",
+    "",
+    "## 採点の方針",
+    "- 予備試験は相対評価。Aは完璧な答案ではなく「上位約300人」の答案。合格答案が登録されていれば、それを水準の目安にする。合格答案が書いていない論点の欠落で大きく減点しない。",
+    "- 最重視するのは骨格（中心の条文・判例の枠組みを選べているか）。次に、要件ごとの規範と当てはめの対応、事実の評価。",
+    "- 当てはめを細かく見る：問題文の事実のうち要件の判断に効く事実を拾ったか、事実に評価（〜だから〜といえる）を加えたか、反対方向の事実にも触れたか、規範と当てはめが対応しているか。事実を写しただけの箇所は当てはめとして評価しない。",
+    "- issues は下の「論点表」の論点ごとに1件（論点表がなければ自分で骨格を推定して論点ごとに）。facts_used は答案が使えている事実、facts_missed は使うべきなのに使っていない事実を、問題文の言葉で短く挙げる（数字は数字ごと）。",
+    "- 甘く採点しない。受験生に同調しない。ただし細部の誤りや小論点の落としだけで大きく下げない。",
+    "- 答案の場所は段落番号（P3 など）で示す。引用は1か所40字以内。答案全体を再掲しない。",
+    "- 条文番号・判例は確実なものだけを挙げる。自信がないものは「要確認」と書く。",
+    "- band は A〜F、score は50点満点の推定点（A≒38以上、B≒29〜37、C≒21〜28、D以下≒20以下）。",
+    "- notes は答案への具体的な指摘を5〜10件（良い点も「良い点」として含める）。rewrite は最も弱い当てはめの段落を1つ選び、合格答案の水準で書き直した例（300〜500字）。next は明日から機械的にできる課題を1つだけ。vs_passing は合格答案との差（登録がなければ、一般的な合格答案との差）。",
+    "",
+    "## 出力",
+    "次の形のJSONだけを出力する（説明文やコードフェンスは付けない）：",
+    '{"band":"B","score":32,"reason":"評価の根拠を2〜3文","issues":[{"label":"論点名","reached":"◯|△|×","where":"P2〜P4","rule":"◯|△|×|—","rule_comment":"規範について","application":"◯|△|×|—","application_comment":"当てはめについて","facts_used":["…"],"facts_missed":["…"],"conclusion":"◯|△|×|—","fix":"どう直すか"}],"notes":[{"para":"P3","quote":"40字以内の引用","kind":"構成|論点抽出|規範|当てはめ|論理|根拠の欠落|条文|表現|良い点","comment":"指摘"}],"vs_passing":"合格答案との差","strengths":["良い点"],"next":"課題を1つ","rewrite":{"para":"P5","before":"元の文（80字以内）","after":"書き直し例"}}',
+    "",
+    "## 合格答案の基準（このサイトのまとめ）",
+    clip(RUBRIC, 9000),
+    "",
+    "## 試験・科目",
+    `${$("exam").value} ${$("year").value || ""} ${$("subject").value}　制限時間：${$("minutes").value || "未入力"}分　完走：${$("finished").value}`,
+    "",
+    "## 論点表（出題趣旨から作成）",
+    pillars,
+    "",
+    "## 出題趣旨・骨格メモ",
+    clip(it && it.shushi ? it.shushi : $("skeleton").value, 8000) || "（未入力）",
+    "",
+    "## 問題文",
+    clip($("problem").value, 12000) || "（未入力）",
+    "",
+    ...good.flatMap((x, i) => [`## 合格答案${i + 1}（評価：${x.rank}${x.src ? "・出典：" + x.src : ""}）`, clip(x.text, 7000), ""]),
+    ...low.flatMap(x => [`## 参考：低評価の答案（評価：${x.rank}）`, clip(x.text, 4000), ""]),
+    good.length ? "" : "（この問題の合格答案は登録されていない）\n",
+    "## 自動評価（キーワード判定。参考）",
+    `${auto.autoBand ? auto.autoBand + "（" + auto.autoScore + "点）。触れていない・弱い論点：" + (auto.missed.join("、") || "なし") : "なし"}`,
+    ...(auto.flags || []).map(f => "- " + f),
+    "",
+    "## 受験生の答案（段落番号つき）",
+    numberedAnswer($("answer").value)
+  ].join("\n");
+}
+
+// API（claude.ai の外で開いたとき）。ストリーミングでJSONを受け取る
+async function callApiJson(prompt, onText, signal){
   const key = store.get("ytb-key", "");
+  const model = modelName();
+  const body = {model, max_tokens: 32000, stream: true,
+    output_config: {effort: "high", format: {type: "json_schema", schema: GRADE_SCHEMA}},
+    messages: [{role: "user", content: prompt}]};
+  const headers = {"content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"};
+  // 安全判定で断られたとき、別のモデルで自動的にやり直す（対応モデルのみ）
+  if(MODELS.includes(model)){ body.fallbacks = "default"; headers["anthropic-beta"] = "server-side-fallback-2026-07-01"; }
+  const res = await fetch("https://api.anthropic.com/v1/messages", {method: "POST", headers, body: JSON.stringify(body), signal});
+  if(!res.ok){
+    const data = await res.json().catch(() => ({}));
+    throw {code: "http_" + res.status, message: (data.error && data.error.message) || res.statusText};
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "", text = "", stop = null;
+  for(;;){
+    const {done, value} = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, {stream: true});
+    let i;
+    while((i = buf.indexOf("\n\n")) >= 0){
+      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+      const data = chunk.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("");
+      if(!data) continue;
+      let ev; try{ ev = JSON.parse(data); }catch(e){ continue; }
+      if(ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta"){ text += ev.delta.text; onText(text); }
+      else if(ev.type === "message_delta" && ev.delta && ev.delta.stop_reason) stop = ev.delta.stop_reason;
+      else if(ev.type === "error") throw {code: "upstream_error", message: (ev.error && ev.error.message) || "error"};
+    }
+  }
+  if(stop === "refusal") throw {code: "refused"};
+  if(stop === "max_tokens") throw {code: "truncated", text};
+  try{ return JSON.parse(text); }catch(e){ throw {code: "invalid_json", text}; }
+}
+
+const AI_ERR = {
+  not_granted: "このページがClaudeを使うことが許可されなかった。許可するには、ページを開き直して添削ボタンを押し、確認画面で許可する。",
+  sampling_disabled: "このアカウントではページからClaudeを使えない設定になっている。",
+  rate_limited: "利用上限か、短時間に使いすぎ。少し時間をおいてからもう一度。",
+  session_expired: "claude.ai に再ログインしてからもう一度。",
+  refused: "この入力ではClaudeが添削を断った。答案や問題文に不要なものが混ざっていないか確認して。",
+  invalid_json: "添削結果の形が崩れていた。もう一度押してみて。続くなら答案を短くして。",
+  truncated: "添削結果が長すぎて途中で切れた。もう一度押すか、答案を短くして。",
+  prompt_too_large: "入力が大きすぎる。問題文や合格答案を短くして。",
+  http_401: "APIキーが正しくないか、無効になっている（401）。設定を確認して。",
+  http_404: "モデル名が見つからない（404）。設定でモデルを変えて。",
+  http_429: "API の利用上限か混雑（429）。少し待ってからもう一度。",
+  http_400: "API がリクエストを受け付けなかった（400）。設定のモデルを標準に戻して試して。"
+};
+let aiCtl = null;
+$("aiStop").addEventListener("click", () => { if(aiCtl) aiCtl.abort(); });
+$("aiGrade").addEventListener("click", async () => {
   const st = $("aiStatus");
   if(!$("answer").value.trim()){ st.className = "status err"; st.textContent = "答案が空です。"; return; }
-  if(!key){ st.className = "status err"; st.textContent = "APIキーが未設定。「設定」タブで入れるか、「プロンプトをコピー」を使ってください。"; return; }
-  const btn = $("callApi"); btn.disabled = true;
-  st.className = "status"; st.textContent = `添削中…（${modelName()}。1〜2分かかることがある）`;
+  if(!SAMPLE && !store.get("ytb-key", "")){ st.className = "status err"; st.textContent = "claude.ai 版で開くか、「設定」でAPIキーを入れるか、「プロンプトをコピー」を使ってください。"; return; }
+  const prompt = gradePrompt();
+  const btn = $("aiGrade"); btn.disabled = true; $("aiStop").hidden = false;
+  aiCtl = new AbortController();
+  st.className = "status"; st.textContent = "考え中…（合格答案と照らして読んでいる。1〜3分かかることがある）";
   $("aiResult").innerHTML = "";
+  const onText = ({text}) => { st.textContent = `書いている…（${text.length.toLocaleString()}字）`; };
   try{
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body: JSON.stringify({model: modelName(), max_tokens: 8000, system: SYSTEM_PROMPT, messages: [{role:"user", content: userMessage()}]})
-    });
-    const data = await res.json().catch(() => ({}));
-    if(!res.ok){
-      const msg = (data && data.error && data.error.message) || res.statusText;
-      st.className = "status err";
-      st.textContent = res.status === 401 ? "APIキーが正しくないか、無効になっている（401）。設定を確認して。" : res.status === 429 ? "利用上限か混雑（429）。少し待ってからもう一度。" : res.status === 404 ? "モデル名が見つからない（404）。設定でモデルを変えて。" : `エラー（${res.status}）：${msg}`;
-      return;
-    }
-    const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
-    $("aiResult").innerHTML = md(text);
-    store.set("ytb-lastai", text);
-    st.textContent = "添削が終わった。「履歴に保存」で残せる。";
+    const g = SAMPLE
+      ? await SAMPLE.json(prompt, {modelTier: "complex", signal: aiCtl.signal, cache: false, onText})
+      : await callApiJson(prompt, text => onText({text}), aiCtl.signal);
+    if(!g || typeof g !== "object" || !Array.isArray(g.issues)) throw {code: "invalid_json"};
+    $("aiResult").innerHTML = renderGrade(g);
+    const mdText = gradeToMd(g);
+    store.set("ytb-lastai", mdText); store.set("ytb-lastgrade", g);
+    $("aiPaste").value = mdText; saveDraft();
+    st.className = "status"; st.textContent = "添削が終わった。「履歴に保存」で残せる。";
   }catch(e){
-    st.className = "status err";
-    st.textContent = "通信できなかった。ネット接続を確認して。（" + e.message + "）";
-  }finally{ btn.disabled = false; }
+    if(e && e.code === "cancelled" || (e && e.name === "AbortError")){ st.className = "status"; st.textContent = "止めた。"; }
+    else { st.className = "status err"; st.textContent = (e && AI_ERR[e.code]) || ("添削できなかった（" + ((e && (e.code || e.message)) || "不明なエラー") + "）。もう一度押すか、「プロンプトをコピー」を使って。"); }
+  }finally{ btn.disabled = false; $("aiStop").hidden = true; aiCtl = null; }
 });
+
+function gradeClass(m){ return m === "◯" ? "o" : m === "△" ? "t" : m === "×" ? "x" : ""; }
+function renderGrade(g){
+  const arr = v => Array.isArray(v) ? v : [];
+  const cell = m => `<td class="g ${gradeClass(m)}">${esc(m || "—")}</td>`;
+  const issues = arr(g.issues), notes = arr(g.notes), rw = g.rewrite || {};
+  return `<div class="grade">
+    <div class="top"><span class="band">${esc(g.band || "—")}圏</span><span class="score" style="font-family:var(--mono);color:var(--muted)">推定 ${esc(g.score ?? "—")} / 50点</span></div>
+    <p style="margin:6px 0 0">${esc(g.reason || "")}</p>
+    <h3>論点ごとの到達度（規範・当てはめ・結論）</h3>
+    <div class="tablewrap"><table class="pil"><thead><tr><th>論点</th><th>到達</th><th>規範</th><th>当てはめ</th><th>結論</th></tr></thead><tbody>
+      ${issues.map(x => `<tr><td>${esc(x.label || "")}${x.where ? `<span class="note">${esc(x.where)}</span>` : ""}
+        <details><summary>中身を見る</summary>
+          ${x.rule_comment ? `<p><b>規範：</b>${esc(x.rule_comment)}</p>` : ""}
+          ${x.application_comment ? `<p><b>当てはめ：</b>${esc(x.application_comment)}</p>` : ""}
+          ${arr(x.facts_used).length ? `<p>使えている事実：${arr(x.facts_used).map(f => `<span class="chip ok">${esc(f)}</span>`).join("")}</p>` : ""}
+          ${arr(x.facts_missed).length ? `<p>使っていない事実：${arr(x.facts_missed).map(f => `<span class="chip ng">${esc(f)}</span>`).join("")}</p>` : ""}
+          ${x.fix ? `<p><b>直し方：</b>${esc(x.fix)}</p>` : ""}
+        </details></td>${cell(x.reached)}${cell(x.rule)}${cell(x.application)}${cell(x.conclusion)}</tr>`).join("")}
+    </tbody></table></div>
+    ${notes.length ? `<h3>答案への指摘</h3><ul class="notes">${notes.map(n => `<li class="${n.kind === "良い点" ? "good" : ""}"><b>${esc(n.para || "")}｜${esc(n.kind || "")}</b>${n.quote ? `「${esc(n.quote)}」` : ""}<br>${esc(n.comment || "")}</li>`).join("")}</ul>` : ""}
+    ${g.vs_passing ? `<h3>合格答案との差</h3><p>${esc(g.vs_passing)}</p>` : ""}
+    ${arr(g.strengths).length ? `<h3>良い点</h3><ul>${arr(g.strengths).map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+    ${g.next ? `<h3>次への課題（1つ）</h3><p>${esc(g.next)}</p>` : ""}
+    ${rw.after ? `<h3>当てはめの書き直し例（${esc(rw.para || "")}）</h3><div class="rw">${rw.before ? `<div>元：${esc(rw.before)}</div>` : ""}<div class="after">${esc(rw.after)}</div></div>` : ""}
+  </div>`;
+}
+function gradeToMd(g){
+  const arr = v => Array.isArray(v) ? v : [];
+  return [
+    `## 推定評価：${g.band || "—"}圏（${g.score ?? "—"}/50点）`, g.reason || "", "",
+    "## 論点ごとの到達度", "| 論点 | 到達 | 規範 | 当てはめ | 結論 |", "|---|---|---|---|---|",
+    ...arr(g.issues).map(x => `| ${(x.label || "").replace(/\|/g, "／")} | ${x.reached || "—"} | ${x.rule || "—"} | ${x.application || "—"} | ${x.conclusion || "—"} |`), "",
+    ...arr(g.issues).flatMap(x => [`### ${x.label || ""}（${x.where || ""}）`,
+      x.rule_comment ? `- 規範：${x.rule_comment}` : "", x.application_comment ? `- 当てはめ：${x.application_comment}` : "",
+      arr(x.facts_used).length ? `- 使えている事実：${arr(x.facts_used).join("／")}` : "",
+      arr(x.facts_missed).length ? `- 使っていない事実：${arr(x.facts_missed).join("／")}` : "",
+      x.fix ? `- 直し方：${x.fix}` : ""].filter(Boolean)), "",
+    "## 答案への指摘", ...arr(g.notes).map(n => `- **${n.para || ""}｜${n.kind || ""}**${n.quote ? "「" + n.quote + "」" : ""}：${n.comment || ""}`), "",
+    "## 合格答案との差", g.vs_passing || "", "",
+    "## 良い点", ...arr(g.strengths).map(t => "- " + t), "",
+    "## 次への課題", g.next || "", "",
+    g.rewrite && g.rewrite.after ? `## 当てはめの書き直し例（${g.rewrite.para || ""}）\n> 元：${g.rewrite.before || ""}\n\n${g.rewrite.after}` : ""
+  ].join("\n");
+}
 
 /* ====== 履歴 ====== */
 function histAll(){ return store.get("ytb-hist", []); }
@@ -997,8 +1355,7 @@ $("histList").addEventListener("click", async ev => {
   }
 });
 $("exportHist").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(histAll(), null, 2)], {type:"application/json"});
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "yobi-tensaku-history.json"; document.body.appendChild(a); a.click(); a.remove();
+  saveFile("yobi-tensaku-history.json", JSON.stringify(histAll(), null, 2), m => alertBox(m));
 });
 $("importHist").addEventListener("change", ev => {
   const f = ev.target.files[0]; if(!f) return;
@@ -1009,7 +1366,7 @@ $("importHist").addEventListener("change", ev => {
 function alertBox(msg){ const ul = $("histList"); const li = document.createElement("li"); li.className = "empty"; li.style.display = "block"; li.textContent = msg; ul.prepend(li); }
 
 /* ====== 設定 ====== */
-$("model").value = store.get("ytb-model", "claude-sonnet-5");
+$("model").value = (m => m === "custom" || MODELS.includes(m) ? m : MODELS[0])(store.get("ytb-model", MODELS[0]));
 $("modelCustom").value = store.get("ytb-modelCustom", "");
 $("apiKey").value = store.get("ytb-key", "") ? "********" : "";
 $("saveKey").addEventListener("click", () => {
@@ -1035,8 +1392,12 @@ async function restoreCur(){
   showTab(store.get("ytb-tab", "grade"));
   await initLoader();
   await restoreCur();
-  const lastAi = store.get("ytb-lastai", "");
-  if($("answer").value.trim()){ runChecks(); if(lastAi) $("aiResult").innerHTML = md(lastAi); }
+  const lastAi = store.get("ytb-lastai", ""), lastGrade = store.get("ytb-lastgrade", null);
+  if($("answer").value.trim()){ runChecks(); if(lastGrade && lastGrade.issues) $("aiResult").innerHTML = renderGrade(lastGrade); else if(lastAi) $("aiResult").innerHTML = md(lastAi); }
+  updateAiMode();
+  initSample();
+  await PASS.init();
+  if($("answer").value.trim()) runChecks();
 })();
 </script>
 </body>

@@ -106,5 +106,50 @@
       "D〜F圏"
     ],
     "memo": "設問(1)は良いが設問(2)が見出しだけの答案（「設問(2)」の見出しで区切って空白を見つける）"
+  },
+  {
+    "file": "R7-kenpo-offtrack.txt",
+    "exam": "yobi",
+    "year": "R7",
+    "id": "憲法",
+    "finished": "完走",
+    "pass": [
+      "R7-kenpo-good.txt"
+    ],
+    "expect": [
+      "C圏",
+      "D〜F圏"
+    ],
+    "memo": "骨格を外した答案は、合格答案と比べても低いまま"
+  },
+  {
+    "file": "R7-kenpo-q1only.txt",
+    "exam": "yobi",
+    "year": "R7",
+    "id": "憲法",
+    "finished": "完走",
+    "pass": [
+      "R7-kenpo-good.txt"
+    ],
+    "expect": [
+      "C圏",
+      "D〜F圏"
+    ],
+    "memo": "設問(2)が空の答案は、合格答案と比べても低いまま"
+  },
+  {
+    "file": "R6-keiso-good.txt",
+    "exam": "yobi",
+    "year": "R6",
+    "id": "刑訴",
+    "finished": "完走",
+    "pass": [
+      "R6-keiso-q1only.txt"
+    ],
+    "expect": [
+      "A圏",
+      "B圏"
+    ],
+    "memo": "合格答案が触れていない論点（設問2）は加点要素になり、減点されない"
   }
 ]
