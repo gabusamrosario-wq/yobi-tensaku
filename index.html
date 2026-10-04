@@ -263,6 +263,10 @@ table.pil .bonus{font-size:11px;color:var(--muted);border:1px solid var(--line);
         <button class="ghost" id="passExport">書き出す（JSON）</button>
         <label class="ghost" for="passImport" style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 16px;cursor:pointer;color:var(--ink);font-size:14px">読み込む<input type="file" id="passImport" accept="application/json" class="sr"></label>
       </div>
+      <h3 style="font-size:15px;margin:18px 0 8px">自分用の問題データ</h3>
+      <p class="hint" style="margin-top:0">法務省のサイトにない年度（旧司法試験の平成13年以前など）の問題データ（JSON）も、上の「読み込む」で入れられる。入れた年度は「添削」タブの年度の一覧に「自分用データ」として出る。ほかの人には見えない。</p>
+      <p class="status" id="extraInfo"></p>
+      <div class="btns"><button class="ghost" id="extraClear" hidden>自分用の問題データを消す</button></div>
     </div>
   </section>
 
@@ -548,6 +552,7 @@ function fillItems(){
 async function initLoader(){
   try{
     DATA_INDEX = await getJSON("exams-index.json");
+    mergeExtra();
     const saved = store.get("ytb-qsel", null);
     if(saved){ $("qExam").value = saved.exam; }
     fillYears();
@@ -561,7 +566,69 @@ async function initLoader(){
 }
 $("qExam").addEventListener("change", fillYears);
 $("qYear").addEventListener("change", fillItems);
+/* ====== 追加の問題データ（法務省のサイトにない年度）。読み込んだ人のブラウザ（claude.ai ではその人専用の保存領域）にだけ置く ====== */
+const EXTRA = {
+  data: store.get("ytb-extra", {}),   // {exam: {year: rec}}
+  rec(exam, year){ return (this.data[exam] || {})[year] || null; },
+  count(){ return Object.values(this.data).reduce((a, ys) => a + Object.keys(ys).length, 0); },
+  async sync(){
+    if(!PASS.db) return;
+    try{
+      const snap = await PASS.col().where("kind", "==", "extra").get();
+      const remote = new Set();
+      for(const d of snap.docs){ const x = d.data(); if(x && x.exam && x.year && x.rec){ (this.data[x.exam] ||= {})[x.year] = x.rec; remote.add(x.exam + "/" + x.year); } }
+      for(const [exam, ys] of Object.entries(this.data)) for(const [year, rec] of Object.entries(ys)) if(!remote.has(exam + "/" + year)) await PASS.col().doc(`extra_${exam}_${year}`).set({kind: "extra", exam, year, rec});
+      store.set("ytb-extra", this.data);
+    }catch(e){}
+  },
+  async add(exam, years){
+    for(const [year, rec] of Object.entries(years)){
+      (this.data[exam] ||= {})[year] = rec;
+      if(PASS.db) await PASS.col().doc(`extra_${exam}_${year}`).set({kind: "extra", exam, year, rec});
+    }
+    store.set("ytb-extra", this.data);
+  },
+  async clear(){
+    if(PASS.db) for(const [exam, ys] of Object.entries(this.data)) for(const year of Object.keys(ys)) await PASS.col().doc(`extra_${exam}_${year}`).delete();
+    this.data = {}; store.set("ytb-extra", this.data);
+  }
+};
+// 読み込んだ問題データ（JSON）を確かめて整える。形：{kind:"problems", exam:"kyushi", years:{H13:{yearLabel, sources, items:[{id,title,subject,problem,skel}]}}}
+function cleanProblems(obj){
+  if(!obj || obj.kind !== "problems" || !EXAM_NAME[obj.exam] || !obj.years || typeof obj.years !== "object") throw new Error("形が違う");
+  const S = v => String(v == null ? "" : v), years = {};
+  for(const [year, r] of Object.entries(obj.years)){
+    if(!/^[SHR][0-9]{1,2}$/.test(year) || !r || !Array.isArray(r.items)) continue;
+    const items = r.items.filter(it => it && it.id && it.problem).map(it => {
+      const sk = it.skel && Array.isArray(it.skel.pillars) ? {source: "curated", note: S(it.skel.note), pillars: it.skel.pillars.filter(p => p && p.label && Array.isArray(p.any)).map(p => ({label: S(p.label), w: +p.w || 1, core: !!p.core, any: p.any.map(S).filter(Boolean), note: S(p.note)})), articles: (it.skel.articles || []).filter(a => a && a.label && Array.isArray(a.any)).map(a => ({label: S(a.label), any: a.any.map(S)}))} : null;
+      return {id: S(it.id), title: S(it.title || it.id), subject: S(it.subject), problem: S(it.problem), shushi: S(it.shushi), skel: sk && sk.pillars.length ? sk : null};
+    });
+    if(items.length) years[year] = {exam: obj.exam, year, yearLabel: S(r.yearLabel || year), private: true, sources: (r.sources || []).map(x => ({title: S(x.title), url: /^https?:\/\//.test(S(x.url)) ? S(x.url) : ""})), note: S(r.note), items};
+  }
+  if(!Object.keys(years).length) throw new Error("年度がない");
+  return {exam: obj.exam, years};
+}
+function yearNum(y){ const m = /^([SHR])([0-9]+)$/.exec(y); return m ? {S: 1925, H: 1988, R: 2018}[m[1]] + Number(m[2]) : 0; }
+function mergeExtra(){
+  if(!DATA_INDEX) return;
+  for(const [exam, ys] of Object.entries(EXTRA.data)){
+    const ex = DATA_INDEX.exams.find(e => e.id === exam); if(!ex) continue;
+    for(const [year, rec] of Object.entries(ys)){
+      const entry = {year, label: rec.yearLabel + "（自分用データ）", extra: true, items: rec.items.map(it => ({id: it.id, title: it.title, subject: it.subject, hasShushi: !!it.shushi}))};
+      const i = ex.years.findIndex(y => y.year === year);
+      if(i < 0) ex.years.push(entry); else if(ex.years[i].extra) ex.years[i] = entry;   // 法務省のデータがある年度は上書きしない
+    }
+    ex.years = ex.years.filter(y => !y.extra || EXTRA.rec(exam, y.year));
+    ex.years.sort((a, b) => yearNum(b.year) - yearNum(a.year));
+  }
+  for(const ex of DATA_INDEX.exams) ex.years = ex.years.filter(y => !y.extra || EXTRA.rec(ex.id, y.year));
+  const sel = [$("qYear").value, $("qItem").value];
+  fillYears();
+  if([...$("qYear").options].some(o => o.value === sel[0])){ $("qYear").value = sel[0]; fillItems(); if([...$("qItem").options].some(o => o.value === sel[1])) $("qItem").value = sel[1]; }
+}
 async function loadYear(exam, year){
+  const ex = DATA_INDEX && DATA_INDEX.exams.find(e => e.id === exam), y = ex && ex.years.find(v => v.year === year);
+  if(y && y.extra && EXTRA.rec(exam, year)) return EXTRA.rec(exam, year);
   if(!yearCache[exam]) yearCache[exam] = await getJSON(`${exam}-data.json`);
   const rec = yearCache[exam][year];
   if(!rec) throw new Error("年度のデータがない：" + year);
@@ -577,10 +644,12 @@ function skelMemo(it){
     lines.push("");
   }
   if(it.shushi) lines.push("【出題趣旨（法務省）】", it.shushi);
+  else if(sk && sk.note) lines.push(sk.note);
   return lines.join("\n");
 }
 function showSource(){
   const rec = CUR && CUR.rec;
+  if(rec && rec.private){ $("qSrc").innerHTML = "出典：" + (rec.sources.length ? rec.sources.map(s => s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>` : esc(s.title)).join("、") : "読み込んだデータ") + "。あなたが読み込んだ自分用のデータで、法務省の公表資料ではない（出題趣旨もない）。論点キーワードは出題趣旨によらず作ったもの。"; return; }
   $("qSrc").innerHTML = rec ? "出典：法務省ウェブサイト " + rec.sources.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join("、") + "（テキストを抽出・整形）" + (rec.saiten && rec.saiten.length ? "。採点実感：" + rec.saiten.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.subject)}</a>`).join("・") : "") : "";
 }
 async function selectItem(key, fill){
@@ -747,7 +816,7 @@ function autoEval(ans, sk, form){
   const score = Math.min(1, (CALIB.wLen * lenRatio + CALIB.wCov * cov) / CALIB.full);
   let b = CALIB.cut.findIndex(t => score >= t); if(b < 0) b = 3;
   const why = [];
-  if(lenRatio < .75) why.push(`分量が${ref && pass.length >= 2 ? "ライブラリの合格答案の中央値" : form.refChars ? "この問題・科目の合格答案（A・B）の中央値" : "A答案の字数の目安"}（${refChars.toLocaleString()}字）の${Math.round(lenRatio * 100)}%。実際の評価は分量と強く結びついている（論点に触れても検討が薄いと点が伸びない）`);
+  if(lenRatio < .75) why.push(`分量が${ref && pass.length >= 2 ? "ライブラリの合格答案の中央値" : form.refChars ? (form.refLabel || "この問題・科目の合格答案（A・B）の中央値") : "A答案の字数の目安"}（${refChars.toLocaleString()}字）の${Math.round(lenRatio * 100)}%。実際の評価は分量と強く結びついている（論点に触れても検討が薄いと点が伸びない）`);
   const core = pil.find(p => p.core);
   if(core && core.level === 0 && b < 2){ b = 2; why.push(`枠組みの論点「${core.label}」の語が見当たらない。骨格を外すと評価は大きく下がる`); }
   else if(core && core.level === 1 && b < 1){ b = 1; why.push(`枠組みの論点「${core.label}」は問題文にある語でしか触れていない。規範・判例・要件の言葉で論じたか確認`); }
@@ -954,7 +1023,7 @@ function runChecks(){
   let ev = null;
   const key = $("qkey").value;
   const sk = (CUR && CUR.key === key && CUR.item.skel) ? CUR.item.skel : memoSkel($("skeleton").value.replace(/【出題趣旨（法務省）】[\s\S]*$/, ""));
-  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob, refChars: CUR && CUR.key === key ? refCharsFor(CUR.item, key.split("/")[0]) : A_MEDIAN, pass: CUR && CUR.key === key && sk === CUR.item.skel ? PASS.refTexts(key) : []});
+  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob, refChars: CUR && CUR.key === key ? refCharsFor(CUR.item, key.split("/")[0]) : A_MEDIAN, refLabel: key.startsWith("yobi/") ? "" : "この試験の答案の分量の目安", pass: CUR && CUR.key === key && sk === CUR.item.skel ? PASS.refTexts(key) : []});
   $("auto").innerHTML = (ev ? renderEval(ev) : `<p class="hint" style="margin-top:0">評価の目安を出すには、上の「過去問を読み込む」を使うか、骨格メモに論点を1行ずつ書く。</p>`) + html;
   const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label + (p.level === 1 ? "（問題文の語だけで触れた）" : "")) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
   store.set("ytb-lastauto", summary);
@@ -1065,6 +1134,17 @@ function passLabel(k){
   const [exam, year, id] = (k || "").split("/");
   return `${EXAM_NAME[exam] || exam} ${year || ""} ${id || ""}`;
 }
+function renderExtra(){
+  if(!$("extraInfo")) return;
+  const parts = Object.entries(EXTRA.data).map(([exam, ys]) => `${EXAM_NAME[exam] || exam}：${Object.keys(ys).sort((a, b) => yearNum(a) - yearNum(b)).map(y => ys[y].yearLabel).join("・")}`);
+  $("extraInfo").textContent = parts.length ? "入っている年度：" + parts.join("／") : "まだ入っていない。";
+  $("extraClear").hidden = !parts.length;
+}
+$("extraClear").addEventListener("click", async () => {
+  if($("extraClear").dataset.confirm !== "1"){ $("extraClear").dataset.confirm = "1"; $("extraClear").textContent = "本当に消す"; setTimeout(() => { $("extraClear").dataset.confirm = ""; $("extraClear").textContent = "自分用の問題データを消す"; }, 4000); return; }
+  $("extraClear").dataset.confirm = ""; $("extraClear").textContent = "自分用の問題データを消す";
+  await EXTRA.clear(); mergeExtra(); renderExtra();
+});
 function renderPass(){
   if(!$("passList")) return;
   const k = $("qkey").value;
@@ -1102,7 +1182,15 @@ $("passImport").addEventListener("change", ev => {
   r.onload = async () => {
     const st = $("passStatus");
     try{
-      const arr = JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
+      const arr = JSON.parse(r.result);
+      if(arr && !Array.isArray(arr) && arr.kind === "problems"){
+        const pr = cleanProblems(arr);
+        st.className = "status"; st.textContent = "問題データを読み込み中…";
+        await EXTRA.add(pr.exam, pr.years); mergeExtra(); renderExtra();
+        st.textContent = `問題データを読み込んだ（${EXAM_NAME[pr.exam]} ${Object.keys(pr.years).length}年度）。「添削」タブの年度の一覧に「自分用データ」として出る。`;
+        return;
+      }
+      if(!Array.isArray(arr)) throw 0;
       const ids = new Set(PASS.items.map(x => x.id)); let n = 0;
       const todo = arr.filter(x => x && x.id && x.key && x.text && !ids.has(String(x.id)));
       st.className = "status";
@@ -1113,7 +1201,7 @@ $("passImport").addEventListener("change", ev => {
         }
       }finally{ store.set("ytb-pass", PASS.items); }
       st.textContent = `${n}通を読み込んだ。`; renderPass();
-    }catch(e){ st.className = "status err"; st.textContent = "読み込めなかった（このサイトで書き出したJSONか確認して）。"; }
+    }catch(e){ st.className = "status err"; st.textContent = "読み込めなかった（このサイトで書き出したJSONか、問題データのJSONか確認して）。"; }
   };
   r.readAsText(f); ev.target.value = "";
 });
@@ -1419,6 +1507,7 @@ async function restoreCur(){
   updateAiMode();
   initSample();
   await PASS.init();
+  await EXTRA.sync(); mergeExtra(); renderExtra();
   if($("answer").value.trim()) runChecks();
 })();
 </script>
