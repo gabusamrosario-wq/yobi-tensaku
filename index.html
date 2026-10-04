@@ -552,6 +552,7 @@ function fillItems(){
 async function initLoader(){
   try{
     DATA_INDEX = await getJSON("exams-index.json");
+    await EXTRA.loadBundled();
     mergeExtra();
     const saved = store.get("ytb-qsel", null);
     if(saved){ $("qExam").value = saved.exam; }
@@ -569,8 +570,13 @@ $("qYear").addEventListener("change", fillItems);
 /* ====== 追加の問題データ（法務省のサイトにない年度）。読み込んだ人のブラウザ（claude.ai ではその人専用の保存領域）にだけ置く ====== */
 const EXTRA = {
   data: store.get("ytb-extra", {}),   // {exam: {year: rec}}
-  rec(exam, year){ return (this.data[exam] || {})[year] || null; },
-  count(){ return Object.values(this.data).reduce((a, ys) => a + Object.keys(ys).length, 0); },
+  bundled: {},   // ページと同じ場所に置いた extra-problems.json（自分用に公開したページにだけある。リポジトリには入れない）
+  all(){ const o = {}; for(const src of [this.bundled, this.data]) for(const [exam, ys] of Object.entries(src)) Object.assign(o[exam] ||= {}, ys); return o; },
+  rec(exam, year){ return (this.data[exam] || {})[year] || (this.bundled[exam] || {})[year] || null; },
+  count(){ return Object.values(this.all()).reduce((a, ys) => a + Object.keys(ys).length, 0); },
+  async loadBundled(){
+    try{ const pr = cleanProblems(await getJSON("extra-problems.json")); this.bundled = {[pr.exam]: pr.years}; }catch(e){ this.bundled = {}; }
+  },
   async sync(){
     if(!PASS.db) return;
     try{
@@ -611,7 +617,7 @@ function cleanProblems(obj){
 function yearNum(y){ const m = /^([SHR])([0-9]+)$/.exec(y); return m ? {S: 1925, H: 1988, R: 2018}[m[1]] + Number(m[2]) : 0; }
 function mergeExtra(){
   if(!DATA_INDEX) return;
-  for(const [exam, ys] of Object.entries(EXTRA.data)){
+  for(const [exam, ys] of Object.entries(EXTRA.all())){
     const ex = DATA_INDEX.exams.find(e => e.id === exam); if(!ex) continue;
     for(const [year, rec] of Object.entries(ys)){
       const entry = {year, label: rec.yearLabel + "（自分用データ）", extra: true, items: rec.items.map(it => ({id: it.id, title: it.title, subject: it.subject, hasShushi: !!it.shushi}))};
@@ -1136,9 +1142,9 @@ function passLabel(k){
 }
 function renderExtra(){
   if(!$("extraInfo")) return;
-  const parts = Object.entries(EXTRA.data).map(([exam, ys]) => `${EXAM_NAME[exam] || exam}：${Object.keys(ys).sort((a, b) => yearNum(a) - yearNum(b)).map(y => ys[y].yearLabel).join("・")}`);
+  const parts = Object.entries(EXTRA.all()).map(([exam, ys]) => `${EXAM_NAME[exam] || exam}：${Object.keys(ys).sort((a, b) => yearNum(a) - yearNum(b)).map(y => ys[y].yearLabel).join("・")}`);
   $("extraInfo").textContent = parts.length ? "入っている年度：" + parts.join("／") : "まだ入っていない。";
-  $("extraClear").hidden = !parts.length;
+  $("extraClear").hidden = !Object.keys(EXTRA.data).length;
 }
 $("extraClear").addEventListener("click", async () => {
   if($("extraClear").dataset.confirm !== "1"){ $("extraClear").dataset.confirm = "1"; $("extraClear").textContent = "本当に消す"; setTimeout(() => { $("extraClear").dataset.confirm = ""; $("extraClear").textContent = "自分用の問題データを消す"; }, 4000); return; }
