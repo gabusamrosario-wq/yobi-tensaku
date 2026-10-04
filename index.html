@@ -600,7 +600,7 @@ function cleanProblems(obj){
   for(const [year, r] of Object.entries(obj.years)){
     if(!/^[SHR][0-9]{1,2}$/.test(year) || !r || !Array.isArray(r.items)) continue;
     const items = r.items.filter(it => it && it.id && it.problem).map(it => {
-      const sk = it.skel && Array.isArray(it.skel.pillars) ? {source: "curated", note: S(it.skel.note), pillars: it.skel.pillars.filter(p => p && p.label && Array.isArray(p.any)).map(p => ({label: S(p.label), w: +p.w || 1, core: !!p.core, any: p.any.map(S).filter(Boolean), note: S(p.note)})), articles: (it.skel.articles || []).filter(a => a && a.label && Array.isArray(a.any)).map(a => ({label: S(a.label), any: a.any.map(S)}))} : null;
+      const sk = it.skel && Array.isArray(it.skel.pillars) ? {source: "own", note: S(it.skel.note), pillars: it.skel.pillars.filter(p => p && p.label && Array.isArray(p.any)).map(p => ({label: S(p.label), w: +p.w || 1, core: !!p.core, any: p.any.map(S).filter(Boolean), note: S(p.note)})), articles: (it.skel.articles || []).filter(a => a && a.label && Array.isArray(a.any)).map(a => ({label: S(a.label), any: a.any.map(S)}))} : null;
       return {id: S(it.id), title: S(it.title || it.id), subject: S(it.subject), problem: S(it.problem), shushi: S(it.shushi), skel: sk && sk.pillars.length ? sk : null};
     });
     if(items.length) years[year] = {exam: obj.exam, year, yearLabel: S(r.yearLabel || year), private: true, sources: (r.sources || []).map(x => ({title: S(x.title), url: /^https?:\/\//.test(S(x.url)) ? S(x.url) : ""})), note: S(r.note), items};
@@ -688,7 +688,7 @@ $("qLoad").addEventListener("click", async () => {
     renderPass();
     saveDraft();
     const sk = CUR.item.skel;
-    st.textContent = `${CUR.rec.yearLabel} ${CUR.item.title} を読み込んだ。` + (sk ? `論点${sk.pillars.length}本で自動評価できる（${sk.source === "curated" ? "精選キーワード" : "出題趣旨から自動抽出したキーワード"}）。` : "この問題は論点キーワードがないので、分量などの形式面だけ評価する。");
+    st.textContent = `${CUR.rec.yearLabel} ${CUR.item.title} を読み込んだ。` + (sk ? `論点${sk.pillars.length}本で自動評価できる（${sk.source === "curated" ? "精選キーワード" : sk.source === "own" ? "読み込んだデータの自作キーワード・精度は低め" : "出題趣旨から自動抽出したキーワード"}）。` : "この問題は論点キーワードがないので、分量などの形式面だけ評価する。");
     if($("answer").value.trim()) runChecks();
   }catch(e){ st.className = "status err"; st.textContent = "読み込めなかった：" + e.message; }
 });
@@ -837,7 +837,7 @@ function autoEval(ans, sk, form){
   return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source, ref};
 }
 function renderEval(ev){
-  const src = ev.source === "curated" ? "出題趣旨をもとに精選した論点キーワード" : ev.source === "auto" ? "出題趣旨から機械的に抜き出した論点キーワード（精度は低め）" : "あなたの骨格メモの語句";
+  const src = ev.source === "curated" ? "出題趣旨をもとに精選した論点キーワード" : ev.source === "own" ? "読み込んだ問題データについていた論点キーワード（出題趣旨によらず作ったもので、精度は低め）" : ev.source === "auto" ? "出題趣旨から機械的に抜き出した論点キーワード（精度は低め）" : "あなたの骨格メモの語句";
   return `<div class="ev">
     <div class="top"><span class="band ${ev.cls}">${ev.band}</span><span class="score">${ev.ref ? "合格答案基準の" : ""}論点カバー ${Math.round(ev.cov * 100)}%${ev.ac !== null ? "・条文 " + Math.round(ev.ac * 100) + "%" : ""}・総合 ${Math.round(ev.score * 100)}点</span></div>
     <div class="bar" aria-hidden="true"><i style="width:${Math.round(ev.score * 100)}%"></i></div>
@@ -846,7 +846,7 @@ function renderEval(ev){
       ${ev.pil.map(p => `<tr class="${["miss", "weak", "hit"][p.level]}"><td class="m">${["×", "△", "◯"][p.level]}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.level === 2 ? "" : `<span class="kw">${p.level === 1 ? "問題文にもある語だけ。次の語や評価の言葉で論じると◯：" : "探した語："}${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td>${ev.ref ? `<td class="m">${p.passHit}/${p.passN}${p.bonus ? '<span class="bonus">加点</span>' : ""}</td>` : ""}</tr>`).join("")}
     </tbody></table></div>
     ${ev.ref ? `<p class="ref">合格答案（${ev.ref.n}通）の中央値：${ev.ref.chars !== null ? ev.ref.chars.toLocaleString() + "字" : "—"}${ev.ref.facts !== null ? "・数字つき事実の拾い率" + Math.round(ev.ref.facts * 100) + "%" : ""}。あなた：${charCount($("answer").value).toLocaleString()}字${ev.ref.mine !== null ? "・" + Math.round(ev.ref.mine * 100) + "%" : ""}。出題趣旨の全論点に対するカバーは${Math.round(ev.ref.covAbs * 100)}%。</p>` : ""}
-    ${ev.arts.length ? `<p class="hint">出題趣旨の条文：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
+    ${ev.arts.length ? `<p class="hint">${ev.source === "own" ? "条文" : "出題趣旨の条文"}：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
     <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。総合点は論点カバーと分量（合格答案の字数の中央値との比）から出す。評価つきの再現答案391通で確かめると、「A圏」と出た答案の4分の3が実際にA・B評価、「D〜F圏」と出た答案の半分あまりが実際にD〜F評価だった。B圏とC圏の区別はあまり当たらない。点は目安で、実際の採点とは異なる。</p>
     ${CUR && CUR.item && CUR.item.shushi ? `<details class="sh"><summary>出題趣旨を読む（法務省）</summary><div>${esc(CUR.item.shushi)}</div></details>` : ""}
   </div>`;
