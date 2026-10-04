@@ -659,6 +659,14 @@ function memoSkel(memo){
   return pillars.length ? {source: "memo", pillars, articles: arts} : null;
 }
 const BANDS = ["A圏", "B圏", "C圏", "D〜F圏"];
+// 自動評価の総合点の重みと帯の境目。評価つき再現答案（予備試験 391通）に合わせた値。
+// 総合 = (wLen × 分量比 + wCov × 論点カバー) ÷ full。分量比は、合格答案（A・B）の字数の中央値に対する比（上限1.6）。
+// 中央値は、ライブラリに合格答案が2通以上あればそれ、なければ問題ごとの値（skel.refChars）、なければ科目ごとの値を使う。
+const CALIB = {wLen: 2.27, wCov: 1.81, full: 4.55, cut: [4.0 / 4.55, 3.5 / 4.55, 3.1 / 4.55]};
+const REF_CHARS_BY_SUBJECT = {"憲法": 2011, "行政法": 2221, "民法": 1992, "商法": 1930, "民訴": 1815, "刑法": 2554, "刑訴": 1583, "実務民事": 1758, "実務刑事": 2153, "一般教養": 900};
+// 司法試験・旧司法試験は答案の長さが違うので別の目安を使う（この2つは評価つき答案での調整をしていない）
+const REF_CHARS_BY_EXAM = {yobi: 2200, shiho: 5200, kyushi: 1600};
+function refCharsFor(item, exam = "yobi"){ return (item && item.skel && item.skel.refChars) || (exam === "yobi" && item && REF_CHARS_BY_SUBJECT[item.id]) || REF_CHARS_BY_EXAM[exam] || A_MEDIAN; }
 // 事実や問題文の語を自分で評価している文の目印
 const RE_EVAL = /(といえ|とはいえ|いえない|認められ|認められない|当たる|当たら|該当|評価|にすぎ|べき|ため|ので|から、|からすれば|考慮)/;
 // 答案の文のうち、問題文と20字以上一致する部分が半分を超える文は「書き写し」とみる
@@ -732,9 +740,14 @@ function autoEval(ans, sk, form){
   }
   const arts = (sk.articles || []).map(a => ({label: a.label, hit: a.any.some(k => A.indexOf(nz(k)) >= 0)}));
   const ac = arts.length ? arts.filter(a => a.hit).length / arts.length : null;
-  const score = ac === null ? cov : cov * 0.8 + ac * 0.2;
-  let b = score >= .7 ? 0 : score >= .5 ? 1 : score >= .3 ? 2 : 3;
+  // 総合点：論点カバーと分量を合わせる。評価つき再現答案391通で重みと帯の境目を決めた（CALIB）。
+  // 論点の語は低評価の答案もほぼ書いているので、カバーだけでは差がつかない。分量（＝論じた量）を合わせると実際の評価との相関が上がる。
+  const refChars = ref && ref.chars && pass.length >= 2 ? ref.chars : (form.refChars || A_MEDIAN);
+  const lenRatio = Math.min((form.chars || 0) / refChars, 1.6);
+  const score = Math.min(1, (CALIB.wLen * lenRatio + CALIB.wCov * cov) / CALIB.full);
+  let b = CALIB.cut.findIndex(t => score >= t); if(b < 0) b = 3;
   const why = [];
+  if(lenRatio < .75) why.push(`分量が${ref && pass.length >= 2 ? "ライブラリの合格答案の中央値" : form.refChars ? "この問題・科目の合格答案（A・B）の中央値" : "A答案の字数の目安"}（${refChars.toLocaleString()}字）の${Math.round(lenRatio * 100)}%。実際の評価は分量と強く結びついている（論点に触れても検討が薄いと点が伸びない）`);
   const core = pil.find(p => p.core);
   if(core && core.level === 0 && b < 2){ b = 2; why.push(`枠組みの論点「${core.label}」の語が見当たらない。骨格を外すと評価は大きく下がる`); }
   else if(core && core.level === 1 && b < 1){ b = 1; why.push(`枠組みの論点「${core.label}」は問題文にある語でしか触れていない。規範・判例・要件の言葉で論じたか確認`); }
@@ -748,7 +761,6 @@ function autoEval(ans, sk, form){
   const weak = pil.filter(p => p.level === 1);
   if(weak.length) why.push(`△の論点が${weak.length}本ある。問題文にある語を出しただけで、規範や評価の言葉が見当たらないので半分に数えている`);
   if(form.finished === "途中" && b < 1){ b = 1; why.push("途中答案なのでA圏にはしない"); }
-  if(form.chars < 1000 && b < 3){ b++; why.push(`分量が${form.chars}字と少ない（A答案の最短例は約1,350字）`); }
   if(form.copy !== null && form.copy > .25 && b < 3){ b++; why.push(`問題文の書き写しが約${Math.round(form.copy * 100)}%ある`); }
   if(form.arts === 0 && b < 3){ b++; why.push("条文番号が一つもない"); }
   const miss = pil.filter(p => p.level < 2 && !p.bonus).sort((x, y) => (x.level - y.level) || (y.w - x.w));
@@ -766,7 +778,7 @@ function renderEval(ev){
     </tbody></table></div>
     ${ev.ref ? `<p class="ref">合格答案（${ev.ref.n}通）の中央値：${ev.ref.chars !== null ? ev.ref.chars.toLocaleString() + "字" : "—"}${ev.ref.facts !== null ? "・数字つき事実の拾い率" + Math.round(ev.ref.facts * 100) + "%" : ""}。あなた：${charCount($("answer").value).toLocaleString()}字${ev.ref.mine !== null ? "・" + Math.round(ev.ref.mine * 100) + "%" : ""}。出題趣旨の全論点に対するカバーは${Math.round(ev.ref.covAbs * 100)}%。</p>` : ""}
     ${ev.arts.length ? `<p class="hint">出題趣旨の条文：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
-    <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。点は目安で、実際の採点とは異なる。</p>
+    <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。総合点は論点カバーと分量（合格答案の字数の中央値との比）から出す。評価つきの再現答案391通で確かめると、「A圏」と出た答案の4分の3が実際にA・B評価、「D〜F圏」と出た答案の半分あまりが実際にD〜F評価だった。B圏とC圏の区別はあまり当たらない。点は目安で、実際の採点とは異なる。</p>
     ${CUR && CUR.item && CUR.item.shushi ? `<details class="sh"><summary>出題趣旨を読む（法務省）</summary><div>${esc(CUR.item.shushi)}</div></details>` : ""}
   </div>`;
 }
@@ -942,7 +954,7 @@ function runChecks(){
   let ev = null;
   const key = $("qkey").value;
   const sk = (CUR && CUR.key === key && CUR.item.skel) ? CUR.item.skel : memoSkel($("skeleton").value.replace(/【出題趣旨（法務省）】[\s\S]*$/, ""));
-  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob, pass: CUR && CUR.key === key && sk === CUR.item.skel ? PASS.refTexts(key) : []});
+  if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob, refChars: CUR && CUR.key === key ? refCharsFor(CUR.item, key.split("/")[0]) : A_MEDIAN, pass: CUR && CUR.key === key && sk === CUR.item.skel ? PASS.refTexts(key) : []});
   $("auto").innerHTML = (ev ? renderEval(ev) : `<p class="hint" style="margin-top:0">評価の目安を出すには、上の「過去問を読み込む」を使うか、骨格メモに論点を1行ずつ書く。</p>`) + html;
   const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label + (p.level === 1 ? "（問題文の語だけで触れた）" : "")) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
   store.set("ytb-lastauto", summary);
@@ -1040,9 +1052,9 @@ const PASS = {
   where(){ return this.db ? "保存先：claude.ai のあなた専用の保存領域（ほかの人には見えない）。" : "保存先：このブラウザ。別の端末に移すときは書き出して読み込む。"; },
   forKey(k){ return this.items.filter(x => x.key === k); },
   refTexts(k){ return this.forKey(k).filter(x => PASS_REF.includes(x.rank)).map(x => x.text); },
-  async add(x){
+  async add(x, save = true){
     if(this.db) await this.col().doc("pass_" + x.id).set(x);
-    this.items.push(x); store.set("ytb-pass", this.items);
+    this.items.push(x); if(save) store.set("ytb-pass", this.items);
   },
   async remove(id){
     if(this.db) await this.col().doc("pass_" + id).delete();
@@ -1092,8 +1104,15 @@ $("passImport").addEventListener("change", ev => {
     try{
       const arr = JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
       const ids = new Set(PASS.items.map(x => x.id)); let n = 0;
-      for(const x of arr) if(x && x.id && x.key && x.text && !ids.has(x.id)){ await PASS.add({kind: "pass", id: String(x.id), key: String(x.key), rank: String(x.rank || "合格"), src: String(x.src || ""), text: String(x.text), date: String(x.date || "")}); n++; }
-      st.className = "status"; st.textContent = `${n}通を読み込んだ。`; renderPass();
+      const todo = arr.filter(x => x && x.id && x.key && x.text && !ids.has(String(x.id)));
+      st.className = "status";
+      try{
+        for(const x of todo){
+          await PASS.add({kind: "pass", id: String(x.id), key: String(x.key), rank: String(x.rank || "合格"), src: String(x.src || ""), text: String(x.text), date: String(x.date || "")}, false); n++;
+          if(n % 20 === 0) st.textContent = `読み込み中… ${n}/${todo.length}通`;
+        }
+      }finally{ store.set("ytb-pass", PASS.items); }
+      st.textContent = `${n}通を読み込んだ。`; renderPass();
     }catch(e){ st.className = "status err"; st.textContent = "読み込めなかった（このサイトで書き出したJSONか確認して）。"; }
   };
   r.readAsText(f); ev.target.value = "";
