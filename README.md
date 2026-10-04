@@ -33,6 +33,7 @@
 2. **ファイルを上げる**
    - できたページの「uploading an existing file」を押す。
    - zip を展開した中の6ファイル（`index.html`・`README.md`・`exams-index.json`・`yobi-data.json`・`shiho-data.json`・`kyushi-data.json`）をまとめてドラッグして入れる。**.json の4つも必ず入れる**（問題文のデータ）。フォルダはない。
+   - `H18.json`・`R7 (20).json` のような年度別のファイルは要らない（中身は `*-data.json` に全部入っている）。上げてしまったら消してよい。
    - 下の「Commit changes」を押す。
 3. **Pages を有効にする**
    - リポジトリの「Settings」→ 左の「Pages」を開く。
