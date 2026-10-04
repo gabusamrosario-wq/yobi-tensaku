@@ -319,7 +319,7 @@ table.pil .bonus{font-size:11px;color:var(--muted);border:1px solid var(--line);
 const RUBRIC = [
 "# 予備論文 合格答案の基準",
 "",
-"法務省の公式資料と、無料公開されている評価つき再現答案（R3〜R7、計117通）を分析してまとめたもの。答案の本文は載せていない。",
+"法務省の公式資料と、無料公開されている評価つき再現答案（R3〜R7の117通を読み比べ、H24〜R7の466通で統計をとった）を分析してまとめたもの。答案の本文は載せていない。",
 "",
 "## 0. 資料の性質",
 "- **予備試験の「採点実感」は法務省から出ていない。** 論文式で公表されているのは「出題の趣旨」だけ。水準の描写や減点パターンは、司法試験（本試験）の同じ科目の採点実感を補助として使っている。実務基礎は予備の出題趣旨のみ。",
@@ -340,8 +340,27 @@ const RUBRIC = [
 "",
 "## 2. CBTと分量",
 "- CBT（2026年から）：1問4ページ×23行×30字＝**上限2,760字**。",
-"- A答案の再現文字数は約1,350〜3,700字、**中央値は約2,200字**（CBTで約3.2ページ）。1,356字のAもあれば、同じ年に一番長い2,959字の答案がEだった例もある。**分量はAの条件ではない**。",
+"- A答案の再現文字数は約1,350〜3,700字、**中央値は約2,200字**（CBTで約3.2ページ）。1,356字のAもあれば、同じ年に一番長い2,959字の答案がEだった例もある。分量はAの必要条件ではないが、**評価との結びつきは強い**（下の2-2）。",
 "- 科目や設問が丸ごと空ならF。小問1つの空白や最後の時間切れなら、AやBで残った例がある。",
+"",
+"## 2-2. 466通の統計でわかったこと（同じ問題の答案どうしを比べた）",
+"評価つき再現答案466通（86問は同じ問題に3通以上）で、答案の特徴と評価の結びつきを、問題の難しさと書き手の実力の差を除いて調べた。",
+"- **分量**：同じ問題の答案の中央値より長いとA・Bが約7割、短いと4割前後。1.5倍以上ではA・Bが8割。分量は「論じた量」の目安として一番強い（順位相関0.43）。",
+"- **論点の言葉の幅**：出題趣旨の論点の言葉を幅広く使っている答案ほど高い（0.48。分量をそろえても0.30）。キーワードの35%未満だとD〜Fが半分。",
+"- **見出しの段数**：「第1→1→(1)」のように3段以上で分けた答案はA・Bが7割、1段だけだと4割弱。",
+"- **要件を①②で並べる**：A答案の中央値は1000字あたり約2.5か所、E・Fは0。分量をそろえても評価と結びつく。",
+"- **規範・当てはめ・結論はちょうどよい量がある**：当てはめの文は1000字あたり2〜5文、規範の文は2〜4文、結論の文は1〜3文のときが最も評価が高い。多すぎても下がる。",
+"- **刑事系**は「〜と解する→〜といえる」の規範と評価の文の密度が、**民事系**は論点の網羅（言葉の幅0.65）が、**実務**は論点の網羅と条文の引用が、特に効いている。",
+"- 条文番号の数・「」の数・判例の言及数・反対説への言及（たしかに〜しかし）は、分量をそろえるとほとんど評価と結びつかない。**数を増やしても上がらない**。",
+"- 書き手ごとに見ると差は小さくなる（同じ人は科目が違っても評価が近い）。答案の書き方より、**法的な理解の正確さ**が評価の大部分を決めている。",
+"",
+"**分量や形で見分けられない差（同じ問題のAとE・Fを10組読み比べた）**：形の上ではE・Fのほうが良く見える組で、E・F側の7組は**枠組みや条文の選択を誤っていた**。",
+"- 準現行犯逮捕を212条1項の「現に罪を行い終わつた」で論じ、39条3項を「被疑者のため」と書いたE／2項の各号と「間がないと明らかに」の構造で論じたA（R3刑訴）",
+"- 私的団体の町内会に政教分離を当てはめたF／政教分離は問題にならないと一言で外し、目的の範囲と協力義務で論じたA（R6憲法）",
+"- 相続人を無権利者として94条2項類推で処理したF／相続人と被相続人を同一視して177条の対抗問題としたA（R1民法）",
+"- 無令状で押収したのを領置（221条）とし、採血の令状を誤ったF／逮捕に伴う差押え（220条）と、鑑定処分許可状と身体検査令状の併用を示したA（R6実務刑事）",
+"- 自己の犯罪の証拠を捨てた行為に103条の「証拠隠滅」を認め、携帯電話の窃盗を落としたF／行為ごとに罪責を検討したA（R5刑法）",
+"- ほかの3組は、決め手の事実を外した（所持金で故意を否定し、チケット購入時期を見落とした等）か、推認の過程を書かずに結論を言った（R7・R6実務刑事）。",
 "",
 "## 3. A答案の条件（重要な順）",
 "1. **中心の条文・判例の枠組みを選べている（出題趣旨の骨格に乗っている）**：A答案と低評価答案の差が一番はっきり出るのはここ。同じ年・同じ科目を比べると、ほぼすべて枠組みの選択で差がついた。",
@@ -413,11 +432,11 @@ const RUBRIC = [
 "## 7. 添削で比べる8項目",
 "1. **骨格（最重要）**：中心の条文・判例の枠組みを選べているか。別の枠組みで書いていないか。外れていればD〜F圏。",
 "2. **要件の分解**：要件ごとに規範と当てはめが対応しているか。",
-"3. **事実の評価**：数字ごと引き、評価が論点の要件とかみ合っているか。事実の7割以上を拾えているか。書き写しで終わっていないか。",
+"3. **事実の評価**：数字ごと引き、評価が論点の要件とかみ合っているか。**決め手の事実**（結論を左右する事実）を拾っているか。推認なら「間接事実→何が推認できるか→反対の可能性」の過程を書いているか。書き写しで終わっていないか。",
 "4. **規範**：基本論点で判例に近いか。長すぎないか（中心論点は長くてよい）。",
 "5. **論理の一貫性**：人物ごと・設問ごとに判断が食い違っていないか。",
 "6. **配分・完走**：限界事例に厚いか。全設問に最後まで触れているか。",
-"7. **条文**：番号と文言で示しているか。",
+"7. **条文**：正しい条文・項号を選んでいるか（誤った条文は枠組みの誤りと同じく重い）。条文番号や「」の数を増やしても評価は上がらない。",
 "8. **問いへの対応**：指示（立場・会議録・検討対象外）に従い、結論が問いの文言に対応しているか。",
 "",
 "推定評価は「骨格 → 要件分解 → 事実評価のかみ合い → 論理の一貫性」の順で決める。細部の誤りや小論点の落としだけで大きく下げない。",
@@ -740,10 +759,14 @@ function memoSkel(memo){
   return pillars.length ? {source: "memo", pillars, articles: arts} : null;
 }
 const BANDS = ["A圏", "B圏", "C圏", "D〜F圏"];
-// 自動評価の総合点の重みと帯の境目。評価つき再現答案（予備試験 391通）に合わせた値。
-// 総合 = (wLen × 分量比 + wCov × 論点カバー) ÷ full。分量比は、合格答案（A・B）の字数の中央値に対する比（上限1.6）。
+// 総合点の材料のひとつ「分量比」は、合格答案（A・B）の字数の中央値に対する比（上限2.0）。
 // 中央値は、ライブラリに合格答案が2通以上あればそれ、なければ問題ごとの値（skel.refChars）、なければ科目ごとの値を使う。
-const CALIB = {wLen: 2.27, wCov: 1.81, full: 4.55, cut: [4.0 / 4.55, 3.5 / 4.55, 3.1 / 4.55]};
+// 総合点の重み。評価つき再現答案461通（A=6〜F=1）に、分量・論点カバー・キーワードの幅・見出しの段数・評価の文の密度を当てはめた（リッジ回帰）。
+// 問題ごとに分けた10分割の検証で、評価との順位相関 0.46→0.49、同じ問題のA・B答案をD〜F答案より上に出す割合 78%→81%。
+// 帯の境目は、従来と同じ割合（A圏27%・B圏24%・C圏25%・D圏24%）になるように置いた。
+const CALIB = {len: 1.6102, cov: 0.9312, kw: 1.7229, depth: 0.2525, eval: 0.0808, b: 0.146, cut: [4.731, 4.189, 3.702]};
+// A答案の中央値（書き方の目安）と、A答案の下から4分の1の値（これを下回ると助言を出す）
+const STYLE_A = {kw: [0.48, 0.39], depth: [3, 2], evalK: [4.95, 3.45], applyK: [2.57, 1.33], normK: [2.56, 1.85], enumK: [2.57, 1.05]};
 const REF_CHARS_BY_SUBJECT = {"憲法": 2011, "行政法": 2221, "民法": 1992, "商法": 1930, "民訴": 1815, "刑法": 2554, "刑訴": 1583, "実務民事": 1758, "実務刑事": 2153, "一般教養": 900};
 // 司法試験・旧司法試験は答案の長さが違うので別の目安を使う（この2つは評価つき答案での調整をしていない）
 const REF_CHARS_BY_EXAM = {yobi: 2200, shiho: 5200, kyushi: 1600};
@@ -789,6 +812,34 @@ function sectionsOf(ans, want){
   if(byDai && want && Object.keys(byDai).sort().join() === [...want].sort().join()) return byDai;
   return null;
 }
+// 書き方の特徴。評価つき再現答案466通の分析で、同じ問題の中で評価と結びついていたもの（tools/README の「高評価答案の分析」）。
+const RE_HEADLINE = /^\s*(第[0-9一二三四五六七八九十]+|設問[0-9]|〔設問|\[設問|【設問|小問|[0-9]+[.．、 　]|[（(][0-9]+[)）]|[ア-ン][.．、 　]|[（(][ア-ン][)）]|[①-⑳]|[（(][ⅰ-ⅹivx]+[)）])/;
+const RE_EVAL_STRICT = /(といえる|と言える|とはいえない|と認められる|認められない|認められる|にあたる|に当たる|にあたらない|に当たらない|該当する|該当しない|を満たす|満たさない|充足する|充たす|を欠く|欠ける|肯定される|否定される|と評価|と考えられる|にすぎない|過ぎない|足りる|足りない)/;
+const RE_NORM_S = /(と解す|と解され|解すべき|解するのが|と考える|と考えられ|べきである|べきだ|をいう|場合をいう|ものをいう|を意味する|判断すべき|判断する。|基準|要件は|要件として|の要件|規範|趣旨は|趣旨から|趣旨に照ら|の趣旨)/;
+const RE_CONCL_S = /^(よって|したがって|従って|以上より|以上から|以上により|ゆえに|故に|それゆえ|結論として|以上の)/;
+function styleFeats(ans, sk, prob){
+  const t = nfkc(ans), n = Math.max(1, charCount(ans));
+  const lines = t.split("\n").filter(l => l.trim());
+  const kinds = new Set(lines.filter(l => RE_HEADLINE.test(l) && charCount(l) <= 60).map(l => l.match(RE_HEADLINE)[1].replace(/[0-9一二三四五六七八九十]+/g, "N").slice(0, 3)));
+  const sents = [];
+  for(const l of lines) for(const s of l.split(/(?<=。)/)) if(charCount(s) >= 4) sents.push(s.trim());
+  const P6 = new Set(); const pz = nz(prob || "").replace(/[、。，．,.「」『』（）()・：:；;]/g, "");
+  for(let i = 0; i + 6 <= pz.length; i++) P6.add(pz.slice(i, i + 6));
+  const usesFact = s => { const z = nz(s).replace(/[、。，．,.「」『』（）()・：:；;]/g, ""); for(let i = 0; i + 6 <= z.length; i++) if(P6.has(z.slice(i, i + 6))) return true; return false; };
+  const evalN = sents.filter(s => RE_EVAL_STRICT.test(s)).length;
+  const applyN = sents.filter(s => RE_EVAL_STRICT.test(s) && usesFact(s)).length;
+  const normN = sents.filter(s => RE_NORM_S.test(s)).length;
+  const conclN = sents.filter(s => RE_CONCL_S.test(s)).length;
+  const enumN = (t.match(/[①-⑩]/g) || []).length + (t.match(/(?<![0-9])\([0-9]\)(?=[^\n]{0,40}(?:こと|要件|及び|かつ|、))/g) || []).length;
+  let kw = null;
+  if(sk && sk.pillars && sk.pillars.length){
+    const A = nz(ans), all = new Set();
+    for(const p of sk.pillars) for(const k of p.any){ const z = nz(k); if(z.length >= 2) all.add(z); }
+    kw = all.size ? [...all].filter(z => A.indexOf(z) >= 0).length / all.size : null;
+  }
+  const per = x => x / n * 1000;
+  return {depth: kinds.size, kw, evalK: per(evalN), applyK: per(applyN), normK: per(normN), conclK: per(conclN), enumK: per(enumN)};
+}
 function autoEval(ans, sk, form){
   const A = nz(ans), P = nz(form.prob || "");
   const sents = A.split(/[。\n]/).filter(s => s.length >= 2);
@@ -821,12 +872,15 @@ function autoEval(ans, sk, form){
   }
   const arts = (sk.articles || []).map(a => ({label: a.label, hit: a.any.some(k => A.indexOf(nz(k)) >= 0)}));
   const ac = arts.length ? arts.filter(a => a.hit).length / arts.length : null;
-  // 総合点：論点カバーと分量を合わせる。評価つき再現答案391通で重みと帯の境目を決めた（CALIB）。
-  // 論点の語は低評価の答案もほぼ書いているので、カバーだけでは差がつかない。分量（＝論じた量）を合わせると実際の評価との相関が上がる。
+  // 総合点：分量・論点カバー・論点の言葉の幅・見出しの段数・評価の文の密度から、実際の評価（F=1〜A=6）を予測する（CALIB）。
+  // 論点の語は低評価の答案もほぼ書いているので、カバーだけでは差がつかない。分量（＝論じた量）と言葉の幅を合わせると実際の評価との相関が上がる。
   const refChars = ref && ref.chars && pass.length >= 2 ? ref.chars : (form.refChars || A_MEDIAN);
-  const lenRatio = Math.min((form.chars || 0) / refChars, 1.6);
-  const score = Math.min(1, (CALIB.wLen * lenRatio + CALIB.wCov * cov) / CALIB.full);
-  let b = CALIB.cut.findIndex(t => score >= t); if(b < 0) b = 3;
+  const lenRatio = (form.chars || 0) / refChars;
+  const st = styleFeats(ans, sk, form.prob);
+  const kw = st.kw === null ? STYLE_A.kw[0] : st.kw;
+  const pred = CALIB.b + CALIB.len * Math.min(lenRatio, 2) + CALIB.cov * cov + CALIB.kw * Math.min(kw, .6) + CALIB.depth * Math.min(st.depth, 4) + CALIB.eval * Math.min(st.evalK, 8);
+  const score = Math.max(0, Math.min(1, (pred - 1) / 5));   // 評価F=1〜A=6 の予測を0〜100点に
+  let b = CALIB.cut.findIndex(t => pred >= t); if(b < 0) b = 3;
   const why = [];
   if(lenRatio < .75) why.push(`分量が${ref && pass.length >= 2 ? "ライブラリの合格答案の中央値" : form.refChars ? (form.refLabel || "この問題・科目の合格答案（A・B）の中央値") : "A答案の字数の目安"}（${refChars.toLocaleString()}字）の${Math.round(lenRatio * 100)}%。実際の評価は分量と強く結びついている（論点に触れても検討が薄いと点が伸びない）`);
   const core = pil.find(p => p.core);
@@ -845,8 +899,18 @@ function autoEval(ans, sk, form){
   if(form.copy !== null && form.copy > .25 && b < 3){ b++; why.push(`問題文の書き写しが約${Math.round(form.copy * 100)}%ある`); }
   if(form.arts === 0 && b < 3){ b++; why.push("条文番号が一つもない"); }
   const miss = pil.filter(p => p.level < 2 && !p.bonus).sort((x, y) => (x.level - y.level) || (y.w - x.w));
+  // 書き方の助言（帯は動かさない）。A答案の下から4分の1を下回るものだけ出す
+  const tips = [];
+  if(charCount(ans) >= 600){
+    if(st.kw !== null && st.kw < STYLE_A.kw[1]) tips.push(`論点の語の幅が狭い（キーワードの${Math.round(st.kw * 100)}%。A答案の中央値は${Math.round(STYLE_A.kw[0] * 100)}%）。高評価の答案ほど、出題趣旨の論点の言葉を幅広く使っている`);
+    if(st.depth < STYLE_A.depth[1]) tips.push(`${st.depth ? `見出しが${st.depth}段しかない` : "見出しがない"}。A答案の多くは「第1→1→(1)」のように3段の見出しで設問・論点・要件を分けている`);
+    if(st.enumK < STYLE_A.enumK[1]) tips.push(`要件を①②…と番号で並べていない。A答案は1000字あたり約${STYLE_A.enumK[0].toFixed(1)}か所で要件を番号で示し、一つずつ当てはめている`);
+    if(st.normK < STYLE_A.normK[1]) tips.push(`規範を示す文（〜と解する・〜をいう・要件は等）が少ない（1000字あたり${st.normK.toFixed(1)}文。A答案の中央値は${STYLE_A.normK[0]}文）`);
+    if(st.evalK < STYLE_A.evalK[1]) tips.push(`事実を評価して結論づける文（〜といえる・当たる・認められる等）が少ない（1000字あたり${st.evalK.toFixed(1)}文。A答案の中央値は${STYLE_A.evalK[0]}文）`);
+    else if(st.applyK < STYLE_A.applyK[1]) tips.push(`評価の文はあるが、問題文の事実を引いた当てはめが少ない（1000字あたり${st.applyK.toFixed(1)}文。A答案の中央値は${STYLE_A.applyK[0]}文）`);
+  }
   if(ref) why.unshift(`合格答案${ref.n}通の半数以上が触れている論点（${ref.base}本）を基準に評価した。${ref.bonus ? `合格答案もあまり触れていない${ref.bonus}本は加点要素として扱い、評価に入れていない。` : ""}`);
-  return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source, ref};
+  return {band: BANDS[b], cls: "ABCD"[b], score, cov, ac, pil, arts, why, miss, source: sk.source, ref, st, tips};
 }
 function renderEval(ev){
   const src = ev.source === "curated" ? "出題趣旨をもとに精選した論点キーワード" : ev.source === "own" ? "読み込んだ問題データについていた論点キーワード（出題趣旨によらず作ったもので、精度は低め）" : ev.source === "auto" ? "出題趣旨から機械的に抜き出した論点キーワード（精度は低め）" : "あなたの骨格メモの語句";
@@ -854,12 +918,13 @@ function renderEval(ev){
     <div class="top"><span class="band ${ev.cls}">${ev.band}</span><span class="score">${ev.ref ? "合格答案基準の" : ""}論点カバー ${Math.round(ev.cov * 100)}%${ev.ac !== null ? "・条文 " + Math.round(ev.ac * 100) + "%" : ""}・総合 ${Math.round(ev.score * 100)}点</span></div>
     <div class="bar" aria-hidden="true"><i style="width:${Math.round(ev.score * 100)}%"></i></div>
     ${ev.why.length ? `<ul class="why">${ev.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+    ${ev.tips && ev.tips.length ? `<p class="hint" style="margin:8px 0 2px">書き方（高評価答案との比較）</p><ul class="why">${ev.tips.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
     <div class="tablewrap" style="margin-top:8px"><table class="pil"><thead><tr><th></th><th>論点（重み）</th><th>答案に出てきた語</th>${ev.ref ? "<th>合格答案</th>" : ""}</tr></thead><tbody>
       ${ev.pil.map(p => `<tr class="${["miss", "weak", "hit"][p.level]}"><td class="m">${["×", "△", "◯"][p.level]}</td><td>${esc(p.label)}${p.core ? "〔枠組み〕" : ""}（${p.w}）${p.note ? `<span class="note">${esc(p.note)}</span>` : ""}${p.level === 2 ? "" : `<span class="kw">${p.level === 1 ? "問題文にもある語だけ。次の語や評価の言葉で論じると◯：" : "探した語："}${esc(p.any.slice(0, 6).join("・"))}</span>`}</td><td>${p.hit ? esc(p.hit) : "—"}</td>${ev.ref ? `<td class="m">${p.passHit}/${p.passN}${p.bonus ? '<span class="bonus">加点</span>' : ""}</td>` : ""}</tr>`).join("")}
     </tbody></table></div>
     ${ev.ref ? `<p class="ref">合格答案（${ev.ref.n}通）の中央値：${ev.ref.chars !== null ? ev.ref.chars.toLocaleString() + "字" : "—"}${ev.ref.facts !== null ? "・数字つき事実の拾い率" + Math.round(ev.ref.facts * 100) + "%" : ""}。あなた：${charCount($("answer").value).toLocaleString()}字${ev.ref.mine !== null ? "・" + Math.round(ev.ref.mine * 100) + "%" : ""}。出題趣旨の全論点に対するカバーは${Math.round(ev.ref.covAbs * 100)}%。</p>` : ""}
     ${ev.arts.length ? `<p class="hint">${ev.source === "own" ? "条文" : "出題趣旨の条文"}：${ev.arts.map(a => (a.hit ? "◯" : "×") + esc(a.label)).join("　")}</p>` : ""}
-    <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。総合点は論点カバーと分量（合格答案の字数の中央値との比）から出す。評価つきの再現答案391通で確かめると、「A圏」と出た答案の4分の3が実際にA・B評価、「D〜F圏」と出た答案の半分あまりが実際にD〜F評価だった。B圏とC圏の区別はあまり当たらない。点は目安で、実際の採点とは異なる。</p>
+    <p class="hint">判定のもと：${src}。語句が答案にあるかを見ている。問題文にもある語は、評価の言葉（といえる・当たる等）と同じ文で使ったときだけ◯、出しただけなら△（半分）。論じ方の正しさ・当てはめの質は判定していない。言い換えて書いた論点は×になることがある。総合点は分量（合格答案の字数の中央値との比）・論点カバー・論点の言葉の幅・見出しの段数・評価の文の密度から出す（評価つき再現答案461通で重みを決めた）。この461通で確かめると、「A圏」と出た答案の約8割が実際にA・B評価、「D〜F圏」と出た答案の約6割が実際にD〜F評価だった。B圏とC圏の区別はあまり当たらない。点は目安で、実際の採点とは異なる。</p>
     ${CUR && CUR.item && CUR.item.shushi ? `<details class="sh"><summary>出題趣旨を読む（法務省）</summary><div>${esc(CUR.item.shushi)}</div></details>` : ""}
   </div>`;
 }
@@ -1037,7 +1102,7 @@ function runChecks(){
   const sk = (CUR && CUR.key === key && CUR.item.skel) ? CUR.item.skel : memoSkel($("skeleton").value.replace(/【出題趣旨（法務省）】[\s\S]*$/, ""));
   if(sk) ev = autoEval(ans, sk, {finished: $("finished").value, chars, copy: cr, arts: arts.length, prob, refChars: CUR && CUR.key === key ? refCharsFor(CUR.item, key.split("/")[0]) : A_MEDIAN, refLabel: key.startsWith("yobi/") ? "" : "この試験の答案の分量の目安", pass: CUR && CUR.key === key && sk === CUR.item.skel ? PASS.refTexts(key) : []});
   $("auto").innerHTML = (ev ? renderEval(ev) : `<p class="hint" style="margin-top:0">評価の目安を出すには、上の「過去問を読み込む」を使うか、骨格メモに論点を1行ずつ書く。</p>`) + html;
-  const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label + (p.level === 1 ? "（問題文の語だけで触れた）" : "")) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`)};
+  const summary = {autoBand: ev ? ev.band : null, autoScore: ev ? Math.round(ev.score * 100) : null, missed: ev ? ev.miss.map(p => p.label + (p.level === 1 ? "（問題文の語だけで触れた）" : "")) : [], chars, pages: +pages.toFixed(1), arts, quotes, nums, issues, copy: cr === null ? null : Math.round(cr * 100), facts: fc ? {total: fc.facts.length, used: fc.used.length} : null, flags: flags.map(f => `[${f[1]}] ${f[2].replace(/<[^>]+>/g, "")}`), st: ev ? ev.st : styleFeats(ans, null, prob)};
   store.set("ytb-lastauto", summary);
   return summary;
 }
@@ -1285,6 +1350,9 @@ function gradePrompt(){
     "## 採点の方針",
     "- 予備試験は相対評価。Aは完璧な答案ではなく「上位約300人」の答案。合格答案が登録されていれば、それを水準の目安にする。合格答案が書いていない論点の欠落で大きく減点しない。",
     "- 最重視するのは骨格（中心の条文・判例の枠組みを選べているか）。次に、要件ごとの規範と当てはめの対応、事実の評価。",
+    "- 形に惑わされない：評価つき再現答案の比較では、事実を多く拾い分量も多いのにE・Fだった答案の多くが、適用する条文・項号や枠組みを取り違えていた（212条1項と2項、政教分離と団体の目的の範囲、94条2項類推と177条、領置と220条など）。まず枠組みと条文の選択の正誤を確かめ、誤っていれば形が整っていてもD以下とする。",
+    "- 刑法は行為ごとに罪責を検討しているか（行為の落としは大きい）、実務基礎は決め手の事実と推認の過程を書いているかを確かめる。",
+    `- 機械的な目安（参考）：${auto.st ? `見出し${auto.st.depth}段・要件の番号づけ1000字あたり${auto.st.enumK.toFixed(1)}か所・規範の文${auto.st.normK.toFixed(1)}文・評価の文${auto.st.evalK.toFixed(1)}文（A答案の中央値はそれぞれ3段・${STYLE_A.enumK[0]}・${STYLE_A.normK[0]}・${STYLE_A.evalK[0]}）` : "（自動評価なし）"}。これらは評価と弱く結びつくだけなので、点数は内容で決める。`,
     "- 当てはめを細かく見る：問題文の事実のうち要件の判断に効く事実を拾ったか、事実に評価（〜だから〜といえる）を加えたか、反対方向の事実にも触れたか、規範と当てはめが対応しているか。事実を写しただけの箇所は当てはめとして評価しない。",
     "- issues は下の「論点表」の論点ごとに1件（論点表がなければ自分で骨格を推定して論点ごとに）。「解説・骨格」があれば、論点の立て方・要件・使うべき事実と推認の筋道はそれを優先して照らす。facts_used は答案が使えている事実、facts_missed は使うべきなのに使っていない事実を、問題文の言葉で短く挙げる（数字は数字ごと）。",
     "- 甘く採点しない。受験生に同調しない。ただし細部の誤りや小論点の落としだけで大きく下げない。",
